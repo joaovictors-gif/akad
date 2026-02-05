@@ -21,6 +21,18 @@ import {
 
 const API_BASE = "https://us-central1-akad-fbe7e.cloudfunctions.net/app";
 
+interface CidadeData {
+  id: string;
+  nome: string;
+  convenio: boolean;
+  convenioInicio?: string;
+  convenioFim?: string;
+  valores?: {
+    desconto: number;
+    normal: number;
+    atraso: number;
+  };
+}
 interface AddStudentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -40,6 +52,8 @@ export interface StudentFormData {
   observacoes: string;
   senha: string;
   responsavel: string;
+  convenioAtivo?: boolean;
+  convenioFim?: string;
 }
 
 type StudentFormState = Omit<StudentFormData, 'senha' | 'responsavel'> & { responsavel: string; cpf?: string };
@@ -81,7 +95,7 @@ export function AddStudentModal({ open, onOpenChange, onAddStudent, isLoading = 
     responsavel: "",
   });
 
-  const [cidades, setCidades] = useState<string[]>([]);
+  const [cidades, setCidades] = useState<CidadeData[]>([]);
   const [loadingCidades, setLoadingCidades] = useState(false);
 
   // Fetch cities from API when modal opens
@@ -90,9 +104,9 @@ export function AddStudentModal({ open, onOpenChange, onAddStudent, isLoading = 
       setLoadingCidades(true);
       fetch(`${API_BASE}/cidades`)
         .then((res) => res.json())
-        .then((data) => {
-          const nomes = data.map((c: any) => c.nome).sort((a: string, b: string) => a.localeCompare(b));
-          setCidades(nomes);
+        .then((data: CidadeData[]) => {
+          const sorted = data.sort((a, b) => a.nome.localeCompare(b.nome));
+          setCidades(sorted);
         })
         .catch((err) => {
           console.error("Erro ao carregar cidades:", err);
@@ -101,6 +115,12 @@ export function AddStudentModal({ open, onOpenChange, onAddStudent, isLoading = 
         .finally(() => setLoadingCidades(false));
     }
   }, [open]);
+
+  // Check if selected city has active convenio
+  const selectedCidade = cidades.find(c => c.nome === formData.cidade);
+  const hasActiveConvenio = selectedCidade?.convenio && 
+    selectedCidade.convenioFim && 
+    new Date(selectedCidade.convenioFim) >= new Date();
 
   const isMaiorIdade = useMemo(() => {
     if (!formData.dataNascimento) return null;
@@ -124,12 +144,14 @@ export function AddStudentModal({ open, onOpenChange, onAddStudent, isLoading = 
       senha = `${day}${month}${year}`;
     }
     
-    const studentData = { 
+    const studentData: StudentFormData = { 
       ...formData, 
       telefone: phoneDigits, // Send unformatted phone
       maiorIdade: isMaiorIdade ?? true, 
       responsavel: isMaiorIdade ? "Próprio" : formData.responsavel,
-      senha 
+      senha,
+      convenioAtivo: hasActiveConvenio,
+      convenioFim: hasActiveConvenio ? selectedCidade?.convenioFim : undefined,
     };
     onAddStudent(studentData);
   };
@@ -224,8 +246,15 @@ export function AddStudentModal({ open, onOpenChange, onAddStudent, isLoading = 
                   </div>
                 ) : (
                   cidades.map((cidade) => (
-                    <SelectItem key={cidade} value={cidade} className="rounded-lg">
-                      {cidade}
+                    <SelectItem key={cidade.nome} value={cidade.nome} className="rounded-lg">
+                      <span className="flex items-center gap-2">
+                        {cidade.nome}
+                        {cidade.convenio && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-500">
+                            Convênio
+                          </span>
+                        )}
+                      </span>
                     </SelectItem>
                   ))
                 )}
@@ -233,7 +262,28 @@ export function AddStudentModal({ open, onOpenChange, onAddStudent, isLoading = 
             </Select>
           </div>
 
-          {/* Email */}
+          {/* Aviso de Convênio Ativo */}
+          {hasActiveConvenio && (
+            <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30">
+              <div className="flex items-start gap-2 text-sm text-green-400">
+                <svg className="h-5 w-5 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <p className="font-medium">Cidade com Convênio Ativo</p>
+                  <p className="text-xs mt-1 text-muted-foreground">
+                    As mensalidades deste aluno serão automaticamente marcadas como pagas até o término do convênio
+                    {selectedCidade?.convenioFim && (
+                      <span className="font-medium text-green-400">
+                        {" "}({new Date(selectedCidade.convenioFim).toLocaleDateString("pt-BR")})
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
             <Label htmlFor="email" className="text-sm font-medium">Email *</Label>
             <Input

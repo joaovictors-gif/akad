@@ -82,7 +82,7 @@ export default function Students() {
   const handleAddStudent = async (formData: StudentFormData) => {
     setIsSubmitting(true);
     try {
-      const payload = {
+      const payload: any = {
         nome: formData.nome,
         religiao: formData.religiao,
         responsavel: formData.responsavel,
@@ -94,6 +94,12 @@ export default function Students() {
         obs: formData.observacoes || "",
       };
 
+      // Se a cidade tem convênio ativo, incluir informação para a API
+      if (formData.convenioAtivo && formData.convenioFim) {
+        payload.convenioAtivo = true;
+        payload.convenioFim = formData.convenioFim;
+      }
+
       const response = await fetch("https://us-central1-akad-fbe7e.cloudfunctions.net/app/alunos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -103,7 +109,12 @@ export default function Students() {
       const data = await response.json();
       if (!data.success) throw new Error();
 
-      toast({ title: "Aluno cadastrado com sucesso!" });
+      toast({ 
+        title: "Aluno cadastrado com sucesso!",
+        description: formData.convenioAtivo 
+          ? "As mensalidades do período do convênio foram marcadas como pagas." 
+          : undefined
+      });
       setModalOpen(false);
       // Real-time listener will update automatically
     } catch {

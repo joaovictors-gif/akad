@@ -3,7 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, DollarSign, ArrowRightLeft } from "lucide-react";
+import { Loader2, DollarSign, ArrowRightLeft, Calendar, RefreshCw, AlertTriangle, CheckCircle } from "lucide-react";
+import { format, addMonths, isAfter, isBefore, differenceInDays } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface City {
   id: string;
@@ -12,6 +14,8 @@ interface City {
   valorDesconto: number;
   valorNormal: number;
   valorAtraso: number;
+  convenioInicio?: string;
+  convenioFim?: string;
 }
 
 interface EditCityModalProps {
@@ -20,16 +24,19 @@ interface EditCityModalProps {
   city: City | null;
   onSave: (cityName: string, valores: { desconto: number; normal: number; atraso: number }) => Promise<void>;
   onConvert: (city: City) => Promise<void>;
+  onRenewConvenio?: (cityName: string, novaDataInicio: string, novaDataFim: string) => Promise<void>;
 }
 
-export function EditCityModal({ open, onOpenChange, city, onSave, onConvert }: EditCityModalProps) {
+export function EditCityModal({ open, onOpenChange, city, onSave, onConvert, onRenewConvenio }: EditCityModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
+  const [isRenewing, setIsRenewing] = useState(false);
   const [valores, setValores] = useState({
     desconto: 0,
     normal: 0,
     atraso: 0,
   });
+  const [novaDataInicio, setNovaDataInicio] = useState("");
 
   // Reset form when city changes
   useEffect(() => {
@@ -39,6 +46,7 @@ export function EditCityModal({ open, onOpenChange, city, onSave, onConvert }: E
         normal: city.valorNormal,
         atraso: city.valorAtraso,
       });
+      setNovaDataInicio("");
     }
   }, [city]);
 
@@ -67,17 +75,54 @@ export function EditCityModal({ open, onOpenChange, city, onSave, onConvert }: E
     }
   };
 
+  const handleRenew = async () => {
+    if (!city || !novaDataInicio || !onRenewConvenio) return;
+
+    setIsRenewing(true);
+    try {
+      const startDate = new Date(novaDataInicio);
+      const endDate = addMonths(startDate, 12);
+      await onRenewConvenio(city.nome, novaDataInicio, format(endDate, "yyyy-MM-dd"));
+      onOpenChange(false);
+    } finally {
+      setIsRenewing(false);
+    }
+  };
+
   const hasChanges = city && (
     valores.desconto !== city.valorDesconto ||
     valores.normal !== city.valorNormal ||
     valores.atraso !== city.valorAtraso
   );
 
+  const getConvenioStatus = () => {
+    if (!city?.convenio || !city.convenioFim) return null;
+
+    const today = new Date();
+    const endDate = new Date(city.convenioFim);
+    const daysRemaining = differenceInDays(endDate, today);
+
+    if (isBefore(endDate, today)) {
+      return { status: "expired", label: "Expirado", color: "text-destructive", bgColor: "bg-destructive/10" };
+    } else if (daysRemaining <= 30) {
+      return { status: "expiring", label: `Expira em ${daysRemaining} dias`, color: "text-yellow-400", bgColor: "bg-yellow-500/10" };
+    } else {
+      return { status: "active", label: "Ativo", color: "text-green-400", bgColor: "bg-green-500/10" };
+    }
+  };
+
+  const convenioStatus = city?.convenio ? getConvenioStatus() : null;
+
+  const formatDateDisplay = (dateStr?: string) => {
+    if (!dateStr) return "-";
+    return format(new Date(dateStr), "dd/MM/yyyy", { locale: ptBR });
+  };
+
   if (!city) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md card-elevated border-border/50">
+      <DialogContent className="sm:max-w-md card-elevated border-border/50 max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-bold text-center">
             Editar Cidade
@@ -221,31 +266,91 @@ export function EditCityModal({ open, onOpenChange, city, onSave, onConvert }: E
               </div>
             </form>
           ) : (
-            /* Cidade é convênio - apenas mostra opção de converter */
+            /* Cidade é convênio */
             <div className="space-y-6">
-              <div className="text-center py-6 text-muted-foreground">
+              {/* Status do Convênio */}
+              {convenioStatus && (
+                <div className={`p-4 rounded-xl ${convenioStatus.bgColor}`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    {convenioStatus.status === "expired" ? (
+                      <AlertTriangle className={`h-5 w-5 ${convenioStatus.color}`} />
+                    ) : convenioStatus.status === "expiring" ? (
+                      <AlertTriangle className={`h-5 w-5 ${convenioStatus.color}`} />
+                    ) : (
+                      <CheckCircle className={`h-5 w-5 ${convenioStatus.color}`} />
+                    )}
+                    <span className={`font-semibold ${convenioStatus.color}`}>
+                      {convenioStatus.label}
+                    </span>
+                  </div>
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <p><span className="font-medium">Início:</span> {formatDateDisplay(city.convenioInicio)}</p>
+                    <p><span className="font-medium">Término:</span> {formatDateDisplay(city.convenioFim)}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Info sobre convênio */}
+              <div className="text-center py-2 text-muted-foreground">
                 <p className="text-sm">
-                  Cidades em convênio não possuem valores de mensalidade próprios.
-                </p>
-                <p className="text-xs mt-2">
-                  Converta para normal para definir valores.
+                  Alunos de cidades em convênio têm mensalidades automaticamente pagas durante a vigência.
                 </p>
               </div>
 
+              {/* Renovar Convênio */}
+              {onRenewConvenio && (
+                <div className="space-y-3 p-4 rounded-xl bg-muted/30 border border-border/30">
+                  <Label className="flex items-center gap-2 text-sm font-medium">
+                    <RefreshCw className="h-4 w-4" />
+                    Renovar Convênio
+                  </Label>
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Nova data de início</Label>
+                    <Input
+                      type="date"
+                      value={novaDataInicio}
+                      onChange={(e) => setNovaDataInicio(e.target.value)}
+                      className="bg-background/50 border-border/50 rounded-xl h-11"
+                    />
+                  </div>
+                  {novaDataInicio && (
+                    <p className="text-xs text-muted-foreground">
+                      Válido até: {formatDateDisplay(format(addMonths(new Date(novaDataInicio), 12), "yyyy-MM-dd"))}
+                    </p>
+                  )}
+                  <Button
+                    type="button"
+                    onClick={handleRenew}
+                    disabled={isRenewing || !novaDataInicio}
+                    className="w-full rounded-xl h-11 bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {isRenewing ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
+                    Renovar por mais 12 meses
+                  </Button>
+                </div>
+              )}
+
               {/* Converter para Normal */}
-              <Button
-                type="button"
-                onClick={handleConvert}
-                disabled={isConverting}
-                className="w-full rounded-xl h-11 bg-primary hover:bg-primary/90"
-              >
-                {isConverting ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <ArrowRightLeft className="h-4 w-4 mr-2" />
-                )}
-                Converter para Normal
-              </Button>
+              <div className="pt-2 border-t border-border/30">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleConvert}
+                  disabled={isConverting}
+                  className="w-full rounded-xl h-11"
+                >
+                  {isConverting ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <ArrowRightLeft className="h-4 w-4 mr-2" />
+                  )}
+                  Converter para Normal
+                </Button>
+              </div>
 
               <Button
                 type="button"

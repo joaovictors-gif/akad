@@ -36,6 +36,8 @@ interface City {
   valorDesconto: number;
   valorNormal: number;
   valorAtraso: number;
+  convenioInicio?: string;
+  convenioFim?: string;
 }
 
 export default function Cities() {
@@ -73,6 +75,8 @@ export default function Cities() {
         valorDesconto: item.valores?.desconto || 0,
         valorNormal: item.valores?.normal || 0,
         valorAtraso: item.valores?.atraso || 0,
+        convenioInicio: item.convenioInicio || item.convenio_inicio,
+        convenioFim: item.convenioFim || item.convenio_fim,
       }));
       
       setCities(transformed);
@@ -93,18 +97,26 @@ export default function Cities() {
   const handleAddCity = async (formData: CityFormData) => {
     setIsSubmitting(true);
     try {
+      const payload: any = {
+        nome: formData.nome,
+        convenio: formData.convenio,
+      };
+
+      if (formData.convenio) {
+        payload.convenioInicio = formData.convenioInicio;
+        payload.convenioFim = formData.convenioFim;
+      } else {
+        payload.valores = {
+          desconto: formData.valorDesconto,
+          normal: formData.valorNormal,
+          atraso: formData.valorAtraso,
+        };
+      }
+
       const response = await fetch(`${API_BASE}/cidades`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nome: formData.nome,
-          convenio: formData.convenio,
-          valores: {
-            desconto: formData.valorDesconto,
-            normal: formData.valorNormal,
-            atraso: formData.valorAtraso,
-          },
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) throw new Error("Erro ao adicionar cidade");
@@ -114,6 +126,31 @@ export default function Cities() {
     } catch (error) {
       console.error("Erro ao adicionar cidade:", error);
       toast.error("Erro ao adicionar cidade");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRenewConvenio = async (cityName: string, novaDataInicio: string, novaDataFim: string) => {
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`${API_BASE}/cidades/${encodeURIComponent(cityName)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          convenio: true,
+          convenioInicio: novaDataInicio,
+          convenioFim: novaDataFim,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Erro ao renovar convênio");
+
+      toast.success("Convênio renovado com sucesso!");
+      await fetchCities();
+    } catch (error) {
+      console.error("Erro ao renovar convênio:", error);
+      toast.error("Erro ao renovar convênio");
     } finally {
       setIsSubmitting(false);
     }
@@ -463,6 +500,7 @@ export default function Cities() {
         city={cityToEdit}
         onSave={handleSaveValues}
         onConvert={handleConvertCity}
+        onRenewConvenio={handleRenewConvenio}
       />
 
       {/* Delete Confirmation Dialog */}
