@@ -51,7 +51,8 @@ const mesesMap: { [key: string]: string } = {
 
 const mesesDoAno = Object.keys(mesesMap);
 const anosDisponiveis = ["24", "25", "26", "27"];
-const cities = ["Todas", "São Paulo", "Rio de Janeiro", "Belo Horizonte"];
+
+const API_BASE = "https://us-central1-akad-fbe7e.cloudfunctions.net/app";
 
 interface Mensalidade {
   id: string;
@@ -88,6 +89,7 @@ export default function Mensalidades() {
   const [mensalidades, setMensalidades] = useState<Mensalidade[]>([]);
   const [loading, setLoading] = useState(true);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [cities, setCities] = useState<string[]>(["Todas"]);
 
   // Estados do PIX
   const [showPixModal, setShowPixModal] = useState(false);
@@ -104,6 +106,19 @@ export default function Mensalidades() {
         clearInterval(pollingRef.current);
       }
     };
+  }, []);
+
+  // Busca cidades da API
+  useEffect(() => {
+    fetch(`${API_BASE}/cidades`)
+      .then((res) => res.json())
+      .then((data) => {
+        const nomes = data.map((c: any) => c.nome).sort((a: string, b: string) => a.localeCompare(b));
+        setCities(["Todas", ...nomes]);
+      })
+      .catch((err) => {
+        console.error("Erro ao carregar cidades:", err);
+      });
   }, []);
 
   // Busca Mensalidades de TODOS os alunos
