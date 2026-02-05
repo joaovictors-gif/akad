@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { db } from "@/lib/firebase";
-import { collection, onSnapshot } from "firebase/firestore";
+import { collection, onSnapshot, Unsubscribe } from "firebase/firestore";
 
 export interface StudentData {
   id: string;
@@ -24,6 +24,7 @@ export const useStudentsRealtime = () => {
   const [students, setStudents] = useState<StudentData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const inforUnsubscribesRef = useRef<Map<string, Unsubscribe>>(new Map());
 
   useEffect(() => {
     if (!db) {
@@ -33,51 +34,90 @@ export const useStudentsRealtime = () => {
     }
 
     const alunosRef = collection(db, "alunos");
+    const studentsMap = new Map<string, StudentData>();
 
-    const unsubscribe = onSnapshot(
-      alunosRef,
-      async (snapshot) => {
-        try {
-          const studentsData: StudentData[] = [];
+    // Função para atualizar o estado com os dados do Map
+    const updateStudentsState = () => {
+      const studentsArray = Array.from(studentsMap.values());
+      setStudents(studentsArray);
+    };
 
-          for (const docSnap of snapshot.docs) {
-            const inforRef = collection(db, `alunos/${docSnap.id}/infor`);
-            
-            // Get the infor subcollection
-            const inforSnapshot = await new Promise<any>((resolve) => {
-              const unsub = onSnapshot(inforRef, (snap) => {
-                unsub();
-                resolve(snap);
-              });
+    // Função para criar listener de infor para um aluno específico
+    const subscribeToInfor = (alunoId: string) => {
+      // Limpa listener anterior se existir
+      const existingUnsub = inforUnsubscribesRef.current.get(alunoId);
+      if (existingUnsub) {
+        existingUnsub();
+      }
+
+      const inforRef = collection(db, `alunos/${alunoId}/infor`);
+      
+      const unsubscribe = onSnapshot(
+        inforRef,
+        (inforSnapshot) => {
+          const inforDoc = inforSnapshot.docs.find((d) => d.id === "infor");
+          
+          if (inforDoc) {
+            studentsMap.set(alunoId, {
+              id: alunoId,
+              infor: inforDoc.data() as StudentData["infor"],
             });
-
-            const inforDoc = inforSnapshot.docs.find((d: any) => d.id === "infor");
-            
-            if (inforDoc) {
-              studentsData.push({
-                id: docSnap.id,
-                infor: inforDoc.data(),
-              });
-            }
+          } else {
+            studentsMap.delete(alunoId);
           }
+          
+          updateStudentsState();
+          setLoading(false);
+        },
+        (err) => {
+          console.error(`Erro no listener infor do aluno ${alunoId}:`, err);
+        }
+      );
 
-          setStudents(studentsData);
-          setError(null);
-        } catch (err) {
-          console.error("Erro ao processar dados:", err);
-          setError("Erro ao carregar alunos");
-        } finally {
+      inforUnsubscribesRef.current.set(alunoId, unsubscribe);
+    };
+
+    // Listener principal da coleção de alunos
+    const unsubscribeAlunos = onSnapshot(
+      alunosRef,
+      (snapshot) => {
+        const currentAlunoIds = new Set(snapshot.docs.map((doc) => doc.id));
+        
+        // Remove listeners de alunos que não existem mais
+        inforUnsubscribesRef.current.forEach((unsub, alunoId) => {
+          if (!currentAlunoIds.has(alunoId)) {
+            unsub();
+            inforUnsubscribesRef.current.delete(alunoId);
+            studentsMap.delete(alunoId);
+          }
+        });
+
+        // Adiciona/atualiza listeners para cada aluno
+        snapshot.docs.forEach((docSnap) => {
+          subscribeToInfor(docSnap.id);
+        });
+
+        // Se não houver alunos, atualiza o estado
+        if (snapshot.docs.length === 0) {
+          setStudents([]);
           setLoading(false);
         }
+
+        setError(null);
       },
       (err) => {
-        console.error("Erro no listener:", err);
+        console.error("Erro no listener de alunos:", err);
         setError("Erro de conexão com o banco");
         setLoading(false);
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeAlunos();
+      // Limpa todos os listeners de infor
+      inforUnsubscribesRef.current.forEach((unsub) => unsub());
+      inforUnsubscribesRef.current.clear();
+    };
   }, []);
 
   return { students, loading, error, setStudents };
