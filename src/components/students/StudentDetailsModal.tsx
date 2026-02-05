@@ -91,7 +91,12 @@ export function StudentDetailsModal({ open, onOpenChange, student, onStudentUpda
 
   const handleWhatsApp = () => {
     const phone = student.telefone.replace(/\D/g, "");
-    const message = encodeURIComponent(`Olá ${student.nome}, tudo bem?`);
+    
+    // Se o responsável for diferente de "Próprio", significa que é menor de idade
+    const isMenor = student.responsavel && student.responsavel !== "Próprio";
+    const nomeContato = isMenor ? student.responsavel : student.nome;
+    
+    const message = encodeURIComponent(`Olá ${nomeContato}, tudo bem?`);
     window.open(`https://wa.me/55${phone}?text=${message}`, "_blank");
   };
 
