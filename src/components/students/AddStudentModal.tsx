@@ -316,18 +316,20 @@ export function AddStudentModal({ open, onOpenChange, onAddStudent, isLoading = 
             </Select>
           </div>
 
-          {/* Telefone */}
-          <div className="space-y-2">
-            <Label htmlFor="telefone" className="text-sm font-medium">Telefone *</Label>
-            <Input
-              id="telefone"
-              placeholder="(89) 81234-5678"
-              value={formData.telefone}
-              onChange={(e) => setFormData({ ...formData, telefone: formatPhone(e.target.value) })}
-              className="bg-muted/50 border-border/50 rounded-xl h-11 focus:bg-muted transition-all duration-200"
-              maxLength={16}
-            />
-          </div>
+          {/* Telefone - Para maiores de idade */}
+          {isMaiorIdade !== false && (
+            <div className="space-y-2">
+              <Label htmlFor="telefone" className="text-sm font-medium">Telefone *</Label>
+              <Input
+                id="telefone"
+                placeholder="(89) 81234-5678"
+                value={formData.telefone}
+                onChange={(e) => setFormData({ ...formData, telefone: formatPhone(e.target.value) })}
+                className="bg-muted/50 border-border/50 rounded-xl h-11 focus:bg-muted transition-all duration-200"
+                maxLength={16}
+              />
+            </div>
+          )}
 
           {/* Maior de Idade - Calculado automaticamente */}
           <div className="space-y-2">
@@ -352,18 +354,32 @@ export function AddStudentModal({ open, onOpenChange, onAddStudent, isLoading = 
             </div>
           </div>
 
-          {/* Responsável - Apenas para menores de idade */}
+          {/* Responsável e Telefone do Responsável - Apenas para menores de idade */}
           {isMaiorIdade === false && (
-            <div className="space-y-2">
-              <Label htmlFor="responsavel" className="text-sm font-medium">Nome do Responsável *</Label>
-              <Input
-                id="responsavel"
-                placeholder="Nome completo do responsável"
-                value={formData.responsavel}
-                onChange={(e) => setFormData({ ...formData, responsavel: e.target.value })}
-                className="bg-muted/50 border-border/50 rounded-xl h-11 focus:bg-muted transition-all duration-200"
-              />
-            </div>
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="responsavel" className="text-sm font-medium">Nome do Responsável *</Label>
+                <Input
+                  id="responsavel"
+                  placeholder="Nome completo do responsável"
+                  value={formData.responsavel}
+                  onChange={(e) => setFormData({ ...formData, responsavel: e.target.value })}
+                  className="bg-muted/50 border-border/50 rounded-xl h-11 focus:bg-muted transition-all duration-200"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="telefone-responsavel" className="text-sm font-medium">Telefone do Responsável *</Label>
+                <Input
+                  id="telefone-responsavel"
+                  placeholder="(89) 81234-5678"
+                  value={formData.telefone}
+                  onChange={(e) => setFormData({ ...formData, telefone: formatPhone(e.target.value) })}
+                  className="bg-muted/50 border-border/50 rounded-xl h-11 focus:bg-muted transition-all duration-200"
+                  maxLength={16}
+                />
+              </div>
+            </>
           )}
 
           {/* Observações */}
