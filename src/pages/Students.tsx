@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Menu, Search, Plus, Eye, Trash2, Loader2, Users } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useStudentsRealtime, StudentData } from "@/hooks/useStudentsRealtime";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AddStudentModal, StudentFormData } from "@/components/students/AddStudentModal";
 import { StudentDetailsModal } from "@/components/students/StudentDetailsModal";
+import { StudentFilters } from "@/components/students/StudentFilters";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +48,7 @@ export default function Students() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [filteredByFilters, setFilteredByFilters] = useState<Student[]>([]);
 
   // Format raw students data
   const students: Student[] = useMemo(() => {
@@ -66,15 +68,26 @@ export default function Students() {
     }));
   }, [rawStudents]);
 
+  // Handle filter changes from StudentFilters component
+  const handleFilterChange = useCallback((filtered: Student[]) => {
+    setFilteredByFilters(filtered);
+  }, []);
+
   // =====================
-  // FILTRO
+  // FILTRO DE BUSCA (applies on top of filters)
   // =====================
-  const filteredStudents = students.filter(
-    (s) =>
-      s.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.responsavel.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.cidade.toLowerCase().includes(searchTerm.toLowerCase()),
-  );
+  const filteredStudents = useMemo(() => {
+    const baseList = filteredByFilters.length > 0 || students.length === 0 ? filteredByFilters : students;
+    
+    if (!searchTerm) return baseList;
+
+    return baseList.filter(
+      (s) =>
+        s.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.responsavel.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.cidade.toLowerCase().includes(searchTerm.toLowerCase()),
+    );
+  }, [filteredByFilters, students, searchTerm]);
 
   // =====================
   // POST - ADICIONAR
@@ -183,20 +196,23 @@ export default function Students() {
           <div className="w-6" />
         </header>
 
-        <div className="p-6">
+        <div className="p-6 space-y-6">
+          {/* FILTROS */}
+          <StudentFilters students={students} onFilterChange={handleFilterChange} />
+
           {/* BUSCA + BOTÃO */}
-          <div className="flex gap-4 mb-6">
+          <div className="flex gap-4">
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar aluno, responsável ou cidade"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 bg-muted/50 border-border/50 rounded-xl h-11"
               />
             </div>
 
-            <Button onClick={() => setModalOpen(true)}>
+            <Button onClick={() => setModalOpen(true)} className="rounded-xl h-11 px-6">
               <Plus className="mr-2 h-4 w-4" />
               Novo Aluno
             </Button>
