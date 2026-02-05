@@ -16,7 +16,7 @@ const Index = () => {
             akad
           </h1>
           <p className="text-muted-foreground mt-2">
-            Bem-vindo de volta
+            Bem-vindo de voltaaaaaaaaaaaa
           </p>
         </div>
 
