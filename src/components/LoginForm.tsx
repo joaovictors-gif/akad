@@ -28,7 +28,7 @@ const LoginForm = () => {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="seu@email.com"
+            placeholder="joao@akad.com"
             className="login-input pl-12"
             required
           />
