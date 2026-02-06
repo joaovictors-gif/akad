@@ -45,7 +45,6 @@ interface EditStudentModalProps {
 }
 
 const religioes = ["Católica", "Evangélica", "Espírita", "Budista", "Outra", "Sem religião"];
-const faixas = ["Branca", "Cinza", "Azul", "Amarela", "Laranja", "Verde", "Roxa", "Marrom", "Preta"];
 
 // Format phone: (XX) XXXXX-XXXX
 const formatPhone = (value: string): string => {
@@ -69,18 +68,13 @@ const unformatPhone = (value: string): string => value.replace(/\D/g, "");
 
 export function EditStudentModal({ open, onOpenChange, student, onStudentUpdated }: EditStudentModalProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [cidades, setCidades] = useState<string[]>([]);
-  const [loadingCidades, setLoadingCidades] = useState(false);
   
   const [formData, setFormData] = useState({
     nome: "",
     dataNascimento: "",
     religiao: "",
-    cidade: "",
     email: "",
-    faixa: "",
     telefone: "",
-    cpf: "",
     observacoes: "",
     responsavel: "",
   });
@@ -92,34 +86,14 @@ export function EditStudentModal({ open, onOpenChange, student, onStudentUpdated
         nome: student.nome || "",
         dataNascimento: student.dataNascimento || "",
         religiao: student.religiao || "",
-        cidade: student.cidade || "",
         email: student.email || "",
-        faixa: student.faixa || "",
         telefone: formatPhone(student.telefone || ""),
-        cpf: formatCPF(student.cpf || ""),
         observacoes: student.observacoes || "",
         responsavel: student.responsavel || "",
       });
     }
   }, [student, open]);
 
-  // Fetch cities from API when modal opens
-  useEffect(() => {
-    if (open) {
-      setLoadingCidades(true);
-      fetch(`${API_BASE}/cidades`)
-        .then((res) => res.json())
-        .then((data) => {
-          const nomes = data.map((c: any) => c.nome).sort((a: string, b: string) => a.localeCompare(b));
-          setCidades(nomes);
-        })
-        .catch((err) => {
-          console.error("Erro ao carregar cidades:", err);
-          setCidades([]);
-        })
-        .finally(() => setLoadingCidades(false));
-    }
-  }, [open]);
 
   const isMaiorIdade = useMemo(() => {
     if (!formData.dataNascimento) return null;
@@ -131,16 +105,11 @@ export function EditStudentModal({ open, onOpenChange, student, onStudentUpdated
   const handleSubmit = async () => {
     if (!student) return;
     
-    // Validate phone (11 digits) and CPF (11 digits)
+    // Validate phone (11 digits)
     const phoneDigits = unformatPhone(formData.telefone);
-    const cpfDigits = formData.cpf.replace(/\D/g, "");
     
     if (phoneDigits.length !== 11) {
       toast.error("Telefone deve ter 11 dígitos");
-      return;
-    }
-    if (cpfDigits.length !== 11) {
-      toast.error("CPF deve ter 11 dígitos");
       return;
     }
     
@@ -152,11 +121,8 @@ export function EditStudentModal({ open, onOpenChange, student, onStudentUpdated
         nome: formData.nome,
         dataNascimento: formData.dataNascimento,
         religiao: formData.religiao,
-        cidade: formData.cidade,
         email: formData.email,
-        faixa: formData.faixa,
         telefone: phoneDigits,
-        cpf: cpfDigits,
         responsavel: isMaiorIdade ? "Próprio" : formData.responsavel,
       };
       
@@ -238,33 +204,6 @@ export function EditStudentModal({ open, onOpenChange, student, onStudentUpdated
             </Select>
           </div>
 
-          {/* Cidade */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Cidade *</Label>
-            <Select
-              value={formData.cidade}
-              onValueChange={(value) => setFormData({ ...formData, cidade: value })}
-              disabled={loadingCidades}
-            >
-              <SelectTrigger className="bg-muted/50 border-border/50 rounded-xl h-11">
-                <SelectValue placeholder={loadingCidades ? "Carregando cidades..." : "Selecione uma cidade"} />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl max-h-60">
-                {cidades.length === 0 && !loadingCidades ? (
-                  <div className="px-3 py-2 text-sm text-muted-foreground">
-                    Nenhuma cidade cadastrada
-                  </div>
-                ) : (
-                  cidades.map((cidade) => (
-                    <SelectItem key={cidade} value={cidade} className="rounded-lg">
-                      {cidade}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
           {/* Email */}
           <div className="space-y-2">
             <Label htmlFor="edit-email" className="text-sm font-medium">Email</Label>
@@ -276,26 +215,6 @@ export function EditStudentModal({ open, onOpenChange, student, onStudentUpdated
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               className="bg-muted/50 border-border/50 rounded-xl h-11 focus:bg-muted transition-all duration-200"
             />
-          </div>
-
-          {/* Faixa */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Faixa</Label>
-            <Select
-              value={formData.faixa}
-              onValueChange={(value) => setFormData({ ...formData, faixa: value })}
-            >
-              <SelectTrigger className="bg-muted/50 border-border/50 rounded-xl h-11">
-                <SelectValue placeholder="Selecione uma faixa" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl">
-                {faixas.map((faixa) => (
-                  <SelectItem key={faixa} value={faixa} className="rounded-lg">
-                    {faixa}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           {/* Telefone */}
@@ -347,19 +266,6 @@ export function EditStudentModal({ open, onOpenChange, student, onStudentUpdated
               />
             </div>
           )}
-
-          {/* CPF */}
-          <div className="space-y-2">
-            <Label htmlFor="edit-cpf" className="text-sm font-medium">CPF *</Label>
-            <Input
-              id="edit-cpf"
-              placeholder="000.000.000-00"
-              value={formData.cpf}
-              onChange={(e) => setFormData({ ...formData, cpf: formatCPF(e.target.value) })}
-              className="bg-muted/50 border-border/50 rounded-xl h-11 focus:bg-muted transition-all duration-200"
-              maxLength={14}
-            />
-          </div>
 
           {/* Observações */}
           <div className="space-y-2">

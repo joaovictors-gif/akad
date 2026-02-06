@@ -59,7 +59,7 @@ export interface StudentFormData {
 type StudentFormState = Omit<StudentFormData, 'senha' | 'responsavel'> & { responsavel: string; cpf?: string };
 
 const religioes = ["Católica", "Evangélica", "Espírita", "Budista", "Outra", "Sem religião"];
-const faixas = ["Branca", "Cinza", "Azul", "Amarela", "Laranja", "Verde", "Roxa", "Marrom", "Preta"];
+const faixas = ["Branca", "Amarela", "Laranja", "Verde", "Azul", "Roxa", "Marrom", "Preta", "Vermelha"];
 
 // Format phone: (XX) XXXXX-XXXX
 const formatPhone = (value: string): string => {

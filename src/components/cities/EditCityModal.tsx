@@ -3,8 +3,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, DollarSign, ArrowRightLeft, Calendar, RefreshCw, AlertTriangle, CheckCircle } from "lucide-react";
-import { format, addMonths, isAfter, isBefore, differenceInDays } from "date-fns";
+import { Loader2, DollarSign, RefreshCw, AlertTriangle, CheckCircle } from "lucide-react";
+import { format, addMonths, isBefore, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface City {
@@ -23,13 +23,11 @@ interface EditCityModalProps {
   onOpenChange: (open: boolean) => void;
   city: City | null;
   onSave: (cityName: string, valores: { desconto: number; normal: number; atraso: number }) => Promise<void>;
-  onConvert: (city: City) => Promise<void>;
   onRenewConvenio?: (cityName: string, novaDataInicio: string, novaDataFim: string) => Promise<void>;
 }
 
-export function EditCityModal({ open, onOpenChange, city, onSave, onConvert, onRenewConvenio }: EditCityModalProps) {
+export function EditCityModal({ open, onOpenChange, city, onSave, onRenewConvenio }: EditCityModalProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [isConverting, setIsConverting] = useState(false);
   const [isRenewing, setIsRenewing] = useState(false);
   const [valores, setValores] = useState({
     desconto: 0,
@@ -60,18 +58,6 @@ export function EditCityModal({ open, onOpenChange, city, onSave, onConvert, onR
       onOpenChange(false);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleConvert = async () => {
-    if (!city) return;
-
-    setIsConverting(true);
-    try {
-      await onConvert(city);
-      onOpenChange(false);
-    } finally {
-      setIsConverting(false);
     }
   };
 
@@ -224,24 +210,6 @@ export function EditCityModal({ open, onOpenChange, city, onSave, onConvert, onR
                 </p>
               </div>
 
-              {/* Converter Convênio */}
-              <div className="pt-2 border-t border-border/30">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleConvert}
-                  disabled={isConverting || isLoading}
-                  className="w-full rounded-xl h-11 border-yellow-500/50 text-yellow-500 hover:bg-yellow-500/10"
-                >
-                  {isConverting ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <ArrowRightLeft className="h-4 w-4 mr-2" />
-                  )}
-                  Converter para Convênio
-                </Button>
-              </div>
-
               {/* Botões */}
               <div className="flex gap-3 pt-2">
                 <Button
@@ -333,24 +301,6 @@ export function EditCityModal({ open, onOpenChange, city, onSave, onConvert, onR
                   </Button>
                 </div>
               )}
-
-              {/* Converter para Normal */}
-              <div className="pt-2 border-t border-border/30">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleConvert}
-                  disabled={isConverting}
-                  className="w-full rounded-xl h-11"
-                >
-                  {isConverting ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <ArrowRightLeft className="h-4 w-4 mr-2" />
-                  )}
-                  Converter para Normal
-                </Button>
-              </div>
 
               <Button
                 type="button"

@@ -154,10 +154,12 @@ export function useNextClass() {
           const [ano, mes, dia] = aula.data.split("-").map(Number);
           const dataAula = new Date(ano, mes - 1, dia);
           
-          // Se for hoje, só inclui se o horário ainda não passou
-          if (aula.data === hojeISO && aula.horarioInicio < horaAtual) return;
+          // Comparar apenas a data (sem hora) para aulas futuras
+          const dataAulaISO = aula.data;
+          const isFutureDate = dataAulaISO > hojeISO;
+          const isTodayFutureTime = dataAulaISO === hojeISO && aula.horarioInicio >= horaAtual;
           
-          if (dataAula >= hoje || (aula.data === hojeISO && aula.horarioInicio >= horaAtual)) {
+          if (isFutureDate || isTodayFutureTime) {
             todasAulas.push({
               data: dataAula,
               dataISO: aula.data,

@@ -226,13 +226,13 @@ export function AttendanceModal({
             <Users className="h-5 w-5 text-primary" />
             Marcar Presença
           </DialogTitle>
-          <div className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground" aria-describedby={undefined}>
             <span className="font-medium text-foreground">{tipoAula}</span>
             {" • "}
             {formatDataBR(data)} às {horario}
             {" • "}
             {cidade}
-          </div>
+          </p>
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden">

@@ -14,7 +14,6 @@ import BeltBranca from "@/assets/belts/Branca.png";
 import BeltAmarela from "@/assets/belts/Amarela.png";
 import BeltLaranja from "@/assets/belts/Laranja.png";
 import BeltVerde from "@/assets/belts/Verde.png";
-import BeltAzul from "@/assets/belts/Azul.png";
 import BeltRoxa from "@/assets/belts/Roxa.png";
 import BeltMarrom from "@/assets/belts/Marrom.png";
 import BeltPreta from "@/assets/belts/Preta.png";
@@ -25,16 +24,15 @@ const API_BASE_URL = "https://us-central1-akad-fbe7e.cloudfunctions.net/app";
 const BELT_OPTIONS = [
   { value: "Branca", label: "Branca", image: BeltBranca, color: "#e5e5e5", achievementId: null },
   { value: "Amarela", label: "Amarela", image: BeltAmarela, color: "#facc15", achievementId: "yellow-belt" },
+  { value: "Vermelha", label: "Vermelha", image: BeltVermelha, color: "#ef4444", achievementId: null },
   { value: "Laranja", label: "Laranja", image: BeltLaranja, color: "#f97316", achievementId: "orange-belt" },
   { value: "Verde", label: "Verde", image: BeltVerde, color: "#22c55e", achievementId: "green-belt" },
-  { value: "Azul", label: "Azul", image: BeltAzul, color: "#3b82f6", achievementId: "blue-belt" },
   { value: "Roxa", label: "Roxa", image: BeltRoxa, color: "#a855f7", achievementId: "purple-belt" },
   { value: "Marrom", label: "Marrom", image: BeltMarrom, color: "#a16207", achievementId: "brown-belt" },
   { value: "Preta", label: "Preta", image: BeltPreta, color: "#171717", achievementId: "black-belt" },
-  { value: "Vermelha", label: "Vermelha", image: BeltVermelha, color: "#ef4444", achievementId: null },
 ];
 
-const BELT_ORDER = ["Branca", "Amarela", "Laranja", "Verde", "Azul", "Roxa", "Marrom", "Preta", "Vermelha"];
+const BELT_ORDER = ["Branca", "Amarela","Vermelha", "Laranja", "Verde", "Roxa", "Marrom", "Preta", ];
 
 interface Student {
   id: string;

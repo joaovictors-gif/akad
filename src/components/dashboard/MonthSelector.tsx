@@ -8,6 +8,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useDashboardDate } from "@/contexts/DashboardDateContext";
 
 const months = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -18,10 +19,9 @@ const currentYear = new Date().getFullYear();
 const years = [currentYear, currentYear - 1];
 
 export function MonthSelector() {
-  const [selectedMonth, setSelectedMonth] = useState(0); // Janeiro
-  const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [tempMonth, setTempMonth] = useState(0);
-  const [tempYear, setTempYear] = useState(currentYear);
+  const { selectedMonth, selectedYear, setSelectedMonth, setSelectedYear } = useDashboardDate();
+  const [tempMonth, setTempMonth] = useState(selectedMonth);
+  const [tempYear, setTempYear] = useState(selectedYear);
   const [open, setOpen] = useState(false);
 
   const handleOpenChange = (isOpen: boolean) => {

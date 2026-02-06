@@ -8,6 +8,7 @@ import { ThemeProvider } from "next-themes";
 import { useState, useEffect, ReactNode } from "react";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
+import { PWAUpdateBanner } from "@/components/PWAUpdateBanner";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import StudentDashboard from "./pages/StudentDashboard";
@@ -328,6 +329,7 @@ const App = () => (
         <AuthProvider>
           <BrowserRouter>
             <AppRoutes />
+            <PWAUpdateBanner />
           </BrowserRouter>
         </AuthProvider>
       </TooltipProvider>

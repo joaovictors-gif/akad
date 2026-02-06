@@ -2,12 +2,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, CreditCard, QrCode, Copy, Check, Loader2, ExternalLink, RefreshCw } from "lucide-react";
+import { ArrowLeft, CreditCard, QrCode, Copy, Check, Loader2, ExternalLink, RefreshCw, CheckCircle2, Info } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { db } from "@/lib/firebase";
 import { collection, onSnapshot, doc, getDoc } from "firebase/firestore";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import {
   createPixPayment,
@@ -26,6 +28,12 @@ interface Mensalidade {
   tipoPagamento?: string;
 }
 
+interface ConvenioInfo {
+  isConvenio: boolean;
+  convenioFim?: string;
+  cidadeNome?: string;
+}
+
 const StudentMensalidades = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
@@ -34,7 +42,9 @@ const StudentMensalidades = () => {
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [mensalidades, setMensalidades] = useState<Mensalidade[]>([]);
   const [loading, setLoading] = useState(true);
+  const [convenioChecked, setConvenioChecked] = useState(false);
   const [userEmail, setUserEmail] = useState<string>("");
+  const [convenioInfo, setConvenioInfo] = useState<ConvenioInfo>({ isConvenio: false });
 
   // Estados do PIX
   const [showPixCode, setShowPixCode] = useState(false);
@@ -49,23 +59,49 @@ const StudentMensalidades = () => {
   // Polling para verificar status do pagamento
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Busca email do aluno
+  // Busca email do aluno e verifica se é convênio ANTES de mostrar qualquer conteúdo
   useEffect(() => {
-    const fetchUserEmail = async () => {
-      if (!currentUser?.uid) return;
+    const fetchUserData = async () => {
+      if (!currentUser?.uid) {
+        setConvenioChecked(true);
+        return;
+      }
       try {
         const inforRef = doc(db, `alunos/${currentUser.uid}/infor/infor`);
         const inforSnap = await getDoc(inforRef);
         if (inforSnap.exists()) {
           const data = inforSnap.data();
           setUserEmail(data.email || currentUser.email || "");
+          
+          // Busca informações da cidade do aluno
+          const cidadeAluno = data.cidade;
+          if (cidadeAluno) {
+            const configRef = doc(db, "configMensalidades", "regrasAtuais");
+            const configSnap = await getDoc(configRef);
+            if (configSnap.exists()) {
+              const configData = configSnap.data();
+              const convenios = configData.convenios || {};
+              
+              // Verifica se a cidade do aluno está nos convênios
+              if (convenios[cidadeAluno]) {
+                const convenioData = convenios[cidadeAluno];
+                setConvenioInfo({
+                  isConvenio: true,
+                  convenioFim: convenioData.fim || null,
+                  cidadeNome: cidadeAluno,
+                });
+              }
+            }
+          }
         }
       } catch (error) {
-        console.error("Erro ao buscar email:", error);
+        console.error("Erro ao buscar dados:", error);
         setUserEmail(currentUser.email || "");
+      } finally {
+        setConvenioChecked(true);
       }
     };
-    fetchUserEmail();
+    fetchUserData();
   }, [currentUser]);
 
   // Busca mensalidades reais do Firebase
@@ -349,51 +385,92 @@ const StudentMensalidades = () => {
           <p className="text-muted-foreground">Acompanhe e pague suas mensalidades</p>
         </div>
 
-        {/* Loading State */}
-        {loading ? (
+        {/* Loading enquanto verifica convênio */}
+        {!convenioChecked ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : mensalidades.length === 0 ? (
-          <Card>
-            <CardContent className="pt-6">
-              <p className="text-center text-muted-foreground">Nenhuma mensalidade encontrada</p>
-            </CardContent>
-          </Card>
         ) : (
-          /* Lista de Mensalidades */
-          <div className="space-y-4">
-            {mensalidades.map((mensalidade) => (
-              <Card key={mensalidade.id}>
-                <CardContent className="pt-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <>
+            {/* Banner de Convênio */}
+            {convenioInfo.isConvenio && (
+              <Card className="mb-6 border-primary/30 bg-primary/5">
+                <CardContent className="pt-6 pb-6">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 rounded-lg bg-primary/20 shrink-0">
+                      <CheckCircle2 className="h-6 w-6 text-primary" />
+                    </div>
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold text-foreground">{mensalidade.mes}</h3>
-                        {getStatusBadge(mensalidade.status)}
-                      </div>
-                      <p className="text-lg font-bold text-primary">{formatCurrency(mensalidade.valor)}</p>
-                      {mensalidade.dataPagamento && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Pago em: {mensalidade.dataPagamento}
-                          {mensalidade.tipoPagamento && ` (${mensalidade.tipoPagamento})`}
-                        </p>
-                      )}
-                      {mensalidade.status !== "pago" && mensalidade.dataVencimento && (
-                        <p className="text-sm text-muted-foreground mt-1">Vencimento: {mensalidade.dataVencimento}</p>
+                      <h3 className="font-semibold text-foreground mb-1">Cidade por Convênio</h3>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        Sua cidade ({convenioInfo.cidadeNome}) possui convênio ativo com a AKAD.
+                      </p>
+                      {convenioInfo.convenioFim && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Info className="h-4 w-4 text-primary" />
+                          <span className="text-foreground font-medium">
+                            Mensalidades pagas até{" "}
+                            {format(new Date(convenioInfo.convenioFim), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                          </span>
+                        </div>
                       )}
                     </div>
-
-                    {mensalidade.status !== "pago" && (
-                      <Button onClick={() => handlePayClick(mensalidade)} className="w-full sm:w-auto">
-                        Pagar
-                      </Button>
-                    )}
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
+            )}
+
+            {/* Lista de Mensalidades - só mostra se não for convênio */}
+            {!convenioInfo.isConvenio && (
+              <>
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : mensalidades.length === 0 ? (
+                  <Card>
+                    <CardContent className="pt-6">
+                      <p className="text-center text-muted-foreground">Nenhuma mensalidade encontrada</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  /* Lista de Mensalidades */
+                  <div className="space-y-4">
+                    {mensalidades.map((mensalidade) => (
+                      <Card key={mensalidade.id}>
+                        <CardContent className="pt-6">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h3 className="font-semibold text-foreground">{mensalidade.mes}</h3>
+                                {getStatusBadge(mensalidade.status)}
+                              </div>
+                              <p className="text-lg font-bold text-primary">{formatCurrency(mensalidade.valor)}</p>
+                              {mensalidade.dataPagamento && (
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  Pago em: {mensalidade.dataPagamento}
+                                  {mensalidade.tipoPagamento && ` (${mensalidade.tipoPagamento})`}
+                                </p>
+                              )}
+                              {mensalidade.status !== "pago" && mensalidade.dataVencimento && (
+                                <p className="text-sm text-muted-foreground mt-1">Vencimento: {mensalidade.dataVencimento}</p>
+                              )}
+                            </div>
+
+                            {mensalidade.status !== "pago" && (
+                              <Button onClick={() => handlePayClick(mensalidade)} className="w-full sm:w-auto">
+                                Pagar
+                              </Button>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </>
         )}
       </main>
 

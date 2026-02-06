@@ -13,7 +13,7 @@ export default function ContaBloqueada() {
     navigate("/");
   };
 
-  const telefoneAcademia = "5511999999999"; // Número da academia
+  const telefoneAcademia = "5589999826221";
   const emailAcademia = "contato@akad.com.br";
 
   return (

@@ -10,6 +10,27 @@ import { doc, getDoc } from "firebase/firestore";
 import { ProfilePhotoUpload } from "@/components/profile/ProfilePhotoUpload";
 import { AchievementsSection } from "@/components/profile/AchievementsSection";
 
+// Belt images
+import BrancaImg from "@/assets/belts/Branca.png";
+import AmarelaImg from "@/assets/belts/Amarela.png";
+import LaranjaImg from "@/assets/belts/Laranja.png";
+import VerdeImg from "@/assets/belts/Verde.png";
+import AzulImg from "@/assets/belts/Azul.png";
+import RoxaImg from "@/assets/belts/Roxa.png";
+import MarromImg from "@/assets/belts/Marrom.png";
+import PretaImg from "@/assets/belts/Preta.png";
+
+const BELT_IMAGES: Record<string, string> = {
+  Branca: BrancaImg,
+  Amarela: AmarelaImg,
+  Laranja: LaranjaImg,
+  Verde: VerdeImg,
+  Azul: AzulImg,
+  Roxa: RoxaImg,
+  Marrom: MarromImg,
+  Preta: PretaImg,
+};
+
 interface StudentData {
   nome: string;
   email: string;
@@ -53,20 +74,6 @@ const StudentProfile = () => {
     fetchStudentData();
   }, [currentUser]);
 
-  const getBeltColor = (belt: string) => {
-    const colors: Record<string, string> = {
-      Branca: "bg-white text-black border border-border",
-      Amarela: "bg-yellow-400 text-black",
-      Laranja: "bg-orange-500 text-white",
-      Verde: "bg-green-600 text-white",
-      Azul: "bg-blue-600 text-white",
-      Roxa: "bg-purple-600 text-white",
-      Marrom: "bg-amber-800 text-white",
-      Preta: "bg-black text-white",
-    };
-    return colors[belt] || "bg-muted text-muted-foreground";
-  };
-
   const getStatusVariant = (status: string) => {
     return status === "Matriculado" || status === "Ativo" ? "default" : "destructive";
   };
@@ -97,54 +104,72 @@ const StudentProfile = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 space-y-6">
-        <Card className="max-w-md mx-auto">
-          <CardContent className="pt-8 pb-6">
-            <div className="flex flex-col items-center mb-8">
-              {currentUser?.uid && (
-                <ProfilePhotoUpload
-                  userId={currentUser.uid}
-                  currentPhotoUrl={studentData?.fotoUrl}
-                  userName={studentData?.nome || ""}
-                  onPhotoUpdated={handlePhotoUpdated}
-                />
-              )}
-            </div>
-
-            <div className="space-y-6">
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground mb-1">Nome</p>
-                <p className="text-xl font-semibold text-foreground">{studentData?.nome}</p>
-              </div>
-
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground mb-1">E-mail</p>
-                <p className="text-base text-foreground">{studentData?.email}</p>
-              </div>
-
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground mb-2">Faixa Atual</p>
-                <div className="flex justify-center">
-                  <span className={`px-6 py-2 rounded-full font-medium ${getBeltColor(studentData?.faixa || "")}`}>
-                    {studentData?.faixa}
-                  </span>
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
+        {/* Grid: empilhado no mobile, lado a lado no desktop */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 max-w-4xl mx-auto">
+          {/* Card de Perfil */}
+          <Card>
+            <CardContent className="pt-4 sm:pt-8 pb-4 sm:pb-6 px-3 sm:px-6">
+              {/* Avatar - menor no mobile */}
+              <div className="flex flex-col items-center mb-4 sm:mb-8">
+                {currentUser?.uid && (
+                  <div className="scale-75 sm:scale-100 origin-center">
+                    <ProfilePhotoUpload
+                      userId={currentUser.uid}
+                      currentPhotoUrl={studentData?.fotoUrl}
+                      userName={studentData?.nome || ""}
+                      onPhotoUpdated={handlePhotoUpdated}
+                    />
+                  </div>
+                )}
+                {/* Nome e email logo abaixo do avatar no mobile */}
+                <div className="text-center mt-2 sm:mt-4">
+                  <p className="text-lg sm:text-xl font-semibold text-foreground">{studentData?.nome}</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">{studentData?.email}</p>
                 </div>
               </div>
 
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground mb-2">Status do aluno</p>
-                <div className="flex justify-center">
-                  <Badge variant={getStatusVariant(studentData?.status || "")} className="text-sm px-4 py-1">
-                    {studentData?.status}
-                  </Badge>
+              {/* Faixa e Status em layout elegante */}
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                {/* Faixa com imagem */}
+                <div className="relative bg-gradient-to-br from-primary/5 to-primary/10 rounded-xl p-3 sm:p-4 border border-primary/20 overflow-hidden">
+                  <div className="absolute top-0 right-0 w-16 h-16 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+                  <p className="text-xs text-muted-foreground mb-2 sm:mb-3 relative z-10">Faixa Atual</p>
+                  <div className="flex flex-col items-center gap-2 relative z-10">
+                    {studentData?.faixa && BELT_IMAGES[studentData.faixa] ? (
+                      <div className="relative group">
+                        <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full scale-75 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <img
+                          src={BELT_IMAGES[studentData.faixa]}
+                          alt={`Faixa ${studentData.faixa}`}
+                          className="h-12 sm:h-16 w-auto object-contain drop-shadow-lg relative z-10 transition-transform hover:scale-105"
+                        />
+                      </div>
+                    ) : null}
+                    <span className="text-xs sm:text-sm font-semibold text-foreground">
+                      {studentData?.faixa}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Status */}
+                <div className="relative bg-gradient-to-br from-muted/30 to-muted/50 rounded-xl p-3 sm:p-4 border border-border/50 overflow-hidden">
+                  <div className="absolute top-0 right-0 w-16 h-16 bg-muted/30 rounded-full -translate-y-1/2 translate-x-1/2" />
+                  <p className="text-xs text-muted-foreground mb-2 sm:mb-3 relative z-10">Status</p>
+                  <div className="flex flex-col items-center justify-center h-12 sm:h-16 relative z-10">
+                    <Badge 
+                      variant={getStatusVariant(studentData?.status || "")} 
+                      className="text-xs sm:text-sm px-3 sm:px-4 py-1 sm:py-1.5 shadow-sm"
+                    >
+                      {studentData?.status}
+                    </Badge>
+                  </div>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        {/* Achievements Section */}
-        <div className="max-w-md mx-auto">
+          {/* Achievements Section */}
           <AchievementsSection
             studentBelt={studentData?.faixa}
             studentData={{

@@ -178,9 +178,9 @@ export default function Frequencia() {
       return aulasDisponiveis; // Retorna vazio se cancelada
     }
 
-    // Verificar aulas flexíveis hoje
-    const aulaFlexivel = aulasFlexiveis.find((a) => a.data === dataISO);
-    if (aulaFlexivel) {
+    // Verificar todas as aulas flexíveis hoje
+    const aulasFlexiveisHoje = aulasFlexiveis.filter((a) => a.data === dataISO);
+    aulasFlexiveisHoje.forEach((aulaFlexivel) => {
       const jaFeita = registrosPresenca.some(
         (r) => r.data === dataISO && r.horario === aulaFlexivel.horarioInicio
       );
@@ -191,11 +191,17 @@ export default function Frequencia() {
         tipo: "flexivel",
         jaFeita,
       });
-    }
+    });
 
-    // Verificar aulas fixas hoje
-    const aulaFixa = aulasFixas.find((a) => a.diaSemana === diaSemana);
-    if (aulaFixa && !aulaFlexivel) {
+    // Verificar todas as aulas fixas hoje (somente se não há aula flexível no mesmo horário)
+    const aulasFixasHoje = aulasFixas.filter((a) => a.diaSemana === diaSemana);
+    aulasFixasHoje.forEach((aulaFixa) => {
+      // Verificar se já existe uma aula flexível no mesmo horário
+      const temFlexivelMesmoHorario = aulasFlexiveisHoje.some(
+        (af) => af.horarioInicio === aulaFixa.horarioInicio
+      );
+      if (temFlexivelMesmoHorario) return;
+      
       const jaFeita = registrosPresenca.some(
         (r) => r.data === dataISO && r.horario === aulaFixa.horarioInicio
       );
@@ -206,7 +212,7 @@ export default function Frequencia() {
         tipo: "fixa",
         jaFeita,
       });
-    }
+    });
 
     return aulasDisponiveis;
   };

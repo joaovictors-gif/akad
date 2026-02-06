@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Menu, Plus, Trash2, Loader2, Clock, Calendar, X, CalendarPlus } from "lucide-react";
+import { Menu, Plus, Trash2, Loader2, Clock, Calendar, X, CalendarPlus, Pencil } from "lucide-react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -110,6 +110,8 @@ export default function Horarios() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingAulas, setIsLoadingAulas] = useState(false);
   const [modalFixaOpen, setModalFixaOpen] = useState(false);
+  const [modalEditarFixaOpen, setModalEditarFixaOpen] = useState(false);
+  const [aulaFixaEditando, setAulaFixaEditando] = useState<AulaFixa | null>(null);
   const [modalFlexivelOpen, setModalFlexivelOpen] = useState(false);
   const [modalCancelarOpen, setModalCancelarOpen] = useState(false);
   const [modalTipoAulaOpen, setModalTipoAulaOpen] = useState(false);
@@ -118,6 +120,14 @@ export default function Horarios() {
     null,
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Form state para edição
+  const [formEditFixa, setFormEditFixa] = useState({
+    diaSemana: 1,
+    horarioInicio: "18:00",
+    duracao: 60,
+    tipoAula: "Aula Normal",
+  });
 
   // Form states
   const [formFixa, setFormFixa] = useState({
@@ -265,13 +275,14 @@ export default function Horarios() {
     fetchAllData();
   }, [selectedCity]);
 
-  // Verificar conflito de horário para aula fixa
-  const verificarConflitoFixa = (diaSemana: number, horarioInicio: string, duracao: number): boolean => {
+  // Verificar conflito de horário para aula fixa (excluindo uma aula específica para edição)
+  const verificarConflitoFixa = (diaSemana: number, horarioInicio: string, duracao: number, excludeId?: string): boolean => {
     const [h, m] = horarioInicio.split(":").map(Number);
     const inicioNovo = h * 60 + m;
     const fimNovo = inicioNovo + duracao;
 
     return aulasFixas.some((aula) => {
+      if (excludeId && aula.id === excludeId) return false;
       if (aula.diaSemana !== diaSemana) return false;
       const [hAula, mAula] = aula.horarioInicio.split(":").map(Number);
       const inicioExistente = hAula * 60 + mAula;
@@ -367,6 +378,66 @@ export default function Horarios() {
     } catch (error) {
       console.error("Erro ao adicionar aula:", error);
       toast.error("Erro ao adicionar aula");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Abrir modal de edição
+  const handleEditClick = (aula: AulaFixa) => {
+    setAulaFixaEditando(aula);
+    setFormEditFixa({
+      diaSemana: aula.diaSemana,
+      horarioInicio: aula.horarioInicio,
+      duracao: aula.duracao,
+      tipoAula: aula.tipoAula,
+    });
+    setModalEditarFixaOpen(true);
+  };
+
+  // Salvar edição de aula fixa
+  const handleEditAulaFixa = async () => {
+    if (!aulaFixaEditando) return;
+
+    // Validar conflito de horário (excluindo a aula que está sendo editada)
+    if (verificarConflitoFixa(formEditFixa.diaSemana, formEditFixa.horarioInicio, formEditFixa.duracao, aulaFixaEditando.id)) {
+      toast.error("Já existe uma aula neste horário!");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const aulaRef = doc(db, `horarios/${selectedCity}/aulas/${aulaFixaEditando.id}`);
+
+      const aulaAtualizada: Omit<AulaFixa, "id"> = {
+        diaSemana: formEditFixa.diaSemana,
+        horarioInicio: formEditFixa.horarioInicio,
+        duracao: formEditFixa.duracao,
+        tipoAula: formEditFixa.tipoAula,
+      };
+
+      await setDoc(aulaRef, aulaAtualizada);
+
+      setAulasFixas((prev) =>
+        prev
+          .map((a) => (a.id === aulaFixaEditando.id ? { id: aulaFixaEditando.id, ...aulaAtualizada } : a))
+          .sort((a, b) => a.diaSemana - b.diaSemana || a.horarioInicio.localeCompare(b.horarioInicio)),
+      );
+
+      // Enviar notificação
+      const diaNome = diasSemana.find((d) => d.value === formEditFixa.diaSemana)?.label || "";
+      enviarNotificacaoCidade(
+        selectedCity,
+        "Horário de Aula Alterado",
+        `${formEditFixa.tipoAula} agora é às ${formEditFixa.horarioInicio} toda ${diaNome}`,
+      );
+
+      toast.success("Aula atualizada com sucesso!");
+      setModalEditarFixaOpen(false);
+      setAulaFixaEditando(null);
+    } catch (error) {
+      console.error("Erro ao atualizar aula:", error);
+      toast.error("Erro ao atualizar aula");
     } finally {
       setIsSubmitting(false);
     }
@@ -703,16 +774,27 @@ export default function Horarios() {
                             key={index}
                             className={`
                               relative h-9 w-full flex items-center justify-center rounded-lg text-sm transition-all
-                              ${ehHoje ? "ring-2 ring-primary ring-offset-1 ring-offset-background" : ""}
-                              ${status === "fixa" ? "bg-primary/20 hover:bg-primary/30" : ""}
-                              ${status === "flexivel" ? "bg-accent hover:bg-accent/80" : ""}
-                              ${status === "cancelado" ? "bg-destructive/20 hover:bg-destructive/30" : ""}
-                              ${status === "sem-aula" && item.dia ? "hover:bg-muted/50" : ""}
+                              ${ehHoje ? "ring-2 ring-offset-2 ring-offset-background shadow-lg" : ""}
+                              ${ehHoje && status === "fixa" ? "ring-primary bg-primary text-primary-foreground" : ""}
+                              ${ehHoje && status === "flexivel" ? "ring-amber-500 bg-amber-500 text-white" : ""}
+                              ${ehHoje && status === "cancelado" ? "ring-destructive bg-destructive/30" : ""}
+                              ${ehHoje && status === "sem-aula" ? "ring-primary bg-primary/10" : ""}
+                              ${!ehHoje && status === "fixa" ? "bg-primary/15 hover:bg-primary/25 border border-primary/30" : ""}
+                              ${!ehHoje && status === "flexivel" ? "bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30" : ""}
+                              ${!ehHoje && status === "cancelado" ? "bg-destructive/15 hover:bg-destructive/25 border border-destructive/30" : ""}
+                              ${status === "sem-aula" && item.dia && !ehHoje ? "hover:bg-muted/50" : ""}
                             `}
                           >
                             {item.dia && (
                               <span
-                                className={`${ehHoje ? "font-bold text-primary" : status === "cancelado" ? "text-destructive line-through" : "text-foreground"}`}
+                                className={`
+                                  ${ehHoje && (status === "fixa" || status === "flexivel") ? "font-bold text-white" : ""}
+                                  ${ehHoje && status === "sem-aula" ? "font-bold text-primary" : ""}
+                                  ${!ehHoje && status === "fixa" ? "text-primary font-medium" : ""}
+                                  ${!ehHoje && status === "flexivel" ? "text-amber-600 dark:text-amber-400 font-medium" : ""}
+                                  ${status === "cancelado" ? "text-destructive line-through" : ""}
+                                  ${status === "sem-aula" && !ehHoje ? "text-foreground" : ""}
+                                `}
                               >
                                 {item.dia}
                               </span>
@@ -725,15 +807,15 @@ export default function Horarios() {
                     {/* Legend */}
                     <div className="flex flex-wrap items-center justify-center gap-4 mt-4 pt-4 border-t border-border">
                       <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded bg-primary/20 border border-primary/40" />
+                        <div className="w-3 h-3 rounded-sm bg-primary/15 border border-primary/40" />
                         <span className="text-xs text-muted-foreground">Fixa</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded bg-accent border border-accent-foreground/20" />
+                        <div className="w-3 h-3 rounded-sm bg-amber-500/15 border border-amber-500/40" />
                         <span className="text-xs text-muted-foreground">Especial</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded bg-destructive/20 border border-destructive/40" />
+                        <div className="w-3 h-3 rounded-sm bg-destructive/15 border border-destructive/40" />
                         <span className="text-xs text-muted-foreground">Cancelada</span>
                       </div>
                     </div>
@@ -790,7 +872,7 @@ export default function Horarios() {
               {/* Right Column: Class Lists */}
               <div className="xl:col-span-2">
                 <Tabs defaultValue="fixas" className="space-y-4">
-                  <TabsList className="bg-muted/50 w-full grid grid-cols-3">
+                  <TabsList className="bg-muted/50 w-full grid grid-cols-2">
                     <TabsTrigger value="fixas" className="text-sm">
                       <Clock className="h-4 w-4 mr-2 hidden sm:inline" />
                       Fixas ({aulasFixas.length})
@@ -798,10 +880,6 @@ export default function Horarios() {
                     <TabsTrigger value="flexiveis" className="text-sm">
                       <CalendarPlus className="h-4 w-4 mr-2 hidden sm:inline" />
                       Flexíveis ({aulasFlexiveis.length})
-                    </TabsTrigger>
-                    <TabsTrigger value="canceladas" className="text-sm">
-                      <X className="h-4 w-4 mr-2 hidden sm:inline" />
-                      Canceladas ({aulasCanceladas.length})
                     </TabsTrigger>
                   </TabsList>
 
@@ -844,14 +922,24 @@ export default function Horarios() {
                                   </div>
                                   <p className="text-xs text-muted-foreground mt-0.5">{PROFESSOR}</p>
                                 </div>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleDeleteClick(aula.id, "fixa")}
-                                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex-shrink-0"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleEditClick(aula)}
+                                    className="text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDeleteClick(aula.id, "fixa")}
+                                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -904,54 +992,6 @@ export default function Horarios() {
                                   size="icon"
                                   onClick={() => handleDeleteClick(aula.id, "flexivel")}
                                   className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex-shrink-0"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  <TabsContent value="canceladas">
-                    <Card className="card-elevated rounded-2xl">
-                      <CardContent className="p-4">
-                        {isLoadingAulas ? (
-                          <div className="flex items-center justify-center py-8">
-                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                          </div>
-                        ) : aulasCanceladas.length === 0 ? (
-                          <div className="text-center py-12">
-                            <X className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                            <p className="text-muted-foreground">Nenhuma aula cancelada</p>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            {aulasCanceladas.map((cancelamento) => (
-                              <div
-                                key={cancelamento.id}
-                                className="flex items-center gap-4 p-3 bg-destructive/10 rounded-xl border border-destructive/30 hover:bg-destructive/15 transition-colors"
-                              >
-                                <div className="flex-shrink-0 w-24 text-center">
-                                  <span className="px-3 py-1.5 bg-destructive/20 text-destructive text-xs font-semibold rounded-lg block">
-                                    {formatDataBR(cancelamento.data)}
-                                  </span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  {cancelamento.motivo ? (
-                                    <p className="text-sm text-muted-foreground">{cancelamento.motivo}</p>
-                                  ) : (
-                                    <p className="text-sm text-muted-foreground italic">Sem motivo informado</p>
-                                  )}
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleDeleteClick(cancelamento.id, "cancelada")}
-                                  className="text-muted-foreground hover:text-primary hover:bg-primary/10 flex-shrink-0"
-                                  title="Restabelecer aula"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -1057,6 +1097,98 @@ export default function Horarios() {
             </Button>
             <Button onClick={handleAddAulaFixa} disabled={isSubmitting}>
               {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Adicionar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Editar Aula Fixa */}
+      <Dialog open={modalEditarFixaOpen} onOpenChange={setModalEditarFixaOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Aula Fixa</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Dia da Semana</Label>
+              <Select
+                value={String(formEditFixa.diaSemana)}
+                onValueChange={(v) => setFormEditFixa((prev) => ({ ...prev, diaSemana: Number(v) }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {diasSemana.map((dia) => (
+                    <SelectItem key={dia.value} value={String(dia.value)}>
+                      {dia.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Horário de Início</Label>
+              <Input
+                type="time"
+                value={formEditFixa.horarioInicio}
+                onChange={(e) => setFormEditFixa((prev) => ({ ...prev, horarioInicio: e.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Duração</Label>
+              <Select
+                value={String(formEditFixa.duracao)}
+                onValueChange={(v) => setFormEditFixa((prev) => ({ ...prev, duracao: Number(v) }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {duracoes.map((d) => (
+                    <SelectItem key={d.value} value={String(d.value)}>
+                      {d.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tipo de Aula</Label>
+              <Select
+                value={formEditFixa.tipoAula}
+                onValueChange={(v) => setFormEditFixa((prev) => ({ ...prev, tipoAula: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {tiposAulaDisponiveis.map((tipo) => (
+                    <SelectItem key={tipo} value={tipo}>
+                      {tipo}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">Professor:</span> {PROFESSOR}
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModalEditarFixaOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleEditAulaFixa} disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar Alterações"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Menu, Search, Plus, LayoutGrid, LayoutList, Trash2, ArrowRightLeft, Loader2, Pencil } from "lucide-react";
+import { Menu, Search, Plus, LayoutGrid, LayoutList, Trash2, Loader2, Pencil } from "lucide-react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,35 +59,35 @@ export default function Cities() {
     fetchCities();
   }, []);
 
-  const fetchCities = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch(`${API_BASE}/cidades`);
-      if (!response.ok) throw new Error("Erro ao carregar cidades");
-      
-      const data = await response.json();
-      
-      // Transform API response to City format
-      const transformed: City[] = data.map((item: any) => ({
-        id: item.id || item.nome,
-        nome: item.nome,
-        convenio: item.convenio || false,
-        valorDesconto: item.valores?.desconto || 0,
-        valorNormal: item.valores?.normal || 0,
-        valorAtraso: item.valores?.atraso || 0,
-        convenioInicio: item.convenioInicio || item.convenio_inicio,
-        convenioFim: item.convenioFim || item.convenio_fim,
-      }));
-      
-      setCities(transformed);
-    } catch (error) {
-      console.error("Erro ao carregar cidades:", error);
-      toast.error("Erro ao carregar cidades");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+const fetchCities = async () => {
+  setIsLoading(true);
+  try {
+    const response = await fetch(`${API_BASE}/cidades`);
+    if (!response.ok) throw new Error("Erro ao carregar cidades");
 
+    const data = await response.json();
+
+    const transformed: City[] = data.map((item: any) => ({
+      id: item.id ?? item.nome,
+      nome: item.nome,
+      convenio: item.convenio ?? false,
+
+      valorDesconto: item.valores?.desconto ?? 0,
+      valorNormal: item.valores?.normal ?? 0,
+      valorAtraso: item.valores?.atraso ?? 0,
+
+      convenioInicio: item.convenio ? item.convenioInicio ?? null : null,
+      convenioFim: item.convenio ? item.convenioFim ?? null : null,
+    }));
+
+    setCities(transformed);
+  } catch (error) {
+    console.error("Erro ao carregar cidades:", error);
+    toast.error("Erro ao carregar cidades");
+  } finally {
+    setIsLoading(false);
+  }
+};
   const filteredCities = cities.filter(
     (city) =>
       city.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -151,36 +151,6 @@ export default function Cities() {
     } catch (error) {
       console.error("Erro ao renovar convênio:", error);
       toast.error("Erro ao renovar convênio");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleConvertCity = async (city: City) => {
-    setIsSubmitting(true);
-    try {
-      const newConvenio = !city.convenio;
-      
-      const response = await fetch(`${API_BASE}/cidades/${encodeURIComponent(city.nome)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          convenio: newConvenio,
-          valores: newConvenio ? null : {
-            desconto: city.valorDesconto,
-            normal: city.valorNormal,
-            atraso: city.valorAtraso,
-          },
-        }),
-      });
-
-      if (!response.ok) throw new Error("Erro ao converter cidade");
-
-      toast.success(`Cidade convertida para ${newConvenio ? "convênio" : "normal"}!`);
-      await fetchCities();
-    } catch (error) {
-      console.error("Erro ao converter cidade:", error);
-      toast.error("Erro ao converter cidade");
     } finally {
       setIsSubmitting(false);
     }
@@ -499,7 +469,6 @@ export default function Cities() {
         onOpenChange={setEditModalOpen}
         city={cityToEdit}
         onSave={handleSaveValues}
-        onConvert={handleConvertCity}
         onRenewConvenio={handleRenewConvenio}
       />
 

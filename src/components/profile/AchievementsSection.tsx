@@ -333,23 +333,23 @@ export function AchievementsSection({ studentBelt, studentData, celebrateAchieve
   return (
     <>
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-primary" />
+        <CardHeader className="pb-2 sm:pb-3 px-3 sm:px-6">
+          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+            <Trophy className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             Conquistas
-            <span className="text-sm font-normal text-muted-foreground ml-auto">
+            <span className="text-xs sm:text-sm font-normal text-muted-foreground ml-auto">
               {unlockedCount}/{achievements.length}
             </span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+        <CardContent className="px-2 sm:px-6 pb-3 sm:pb-6">
+          <div className="grid grid-cols-4 sm:grid-cols-4 gap-1.5 sm:gap-3">
             {achievements.map((achievement) => (
               <button
                 key={achievement.id}
                 onClick={() => setSelectedAchievement(achievement)}
                 className={cn(
-                  "relative flex flex-col items-center p-3 rounded-xl transition-all cursor-pointer hover:scale-105",
+                  "relative flex flex-col items-center p-1.5 sm:p-3 rounded-lg sm:rounded-xl transition-all cursor-pointer hover:scale-105",
                   achievement.unlocked
                     ? "bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/30"
                     : "bg-muted/30 border border-border/50 opacity-60 hover:opacity-80"
@@ -357,22 +357,22 @@ export function AchievementsSection({ studentBelt, studentData, celebrateAchieve
               >
                 <div
                   className={cn(
-                    "relative h-10 w-10 rounded-full flex items-center justify-center mb-2",
+                    "relative h-7 w-7 sm:h-10 sm:w-10 rounded-full flex items-center justify-center mb-1 sm:mb-2",
                     achievement.unlocked
                       ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/30"
                       : "bg-muted text-muted-foreground"
                   )}
                 >
-                  <IconComponent icon={achievement.icon} className="h-5 w-5" />
+                  <IconComponent icon={achievement.icon} className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
                   {!achievement.unlocked && (
                     <div className="absolute inset-0 bg-background/60 rounded-full flex items-center justify-center">
-                      <Lock className="h-4 w-4 text-muted-foreground" />
+                      <Lock className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                     </div>
                   )}
                 </div>
                 <p
                   className={cn(
-                    "text-xs text-center font-medium leading-tight",
+                    "text-[10px] sm:text-xs text-center font-medium leading-tight line-clamp-2",
                     achievement.unlocked ? "text-foreground" : "text-muted-foreground"
                   )}
                 >

@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Loader2, X, CheckCircle2, XCircle } from "lucide-react";
+import { ArrowLeft, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -30,7 +30,6 @@ interface AulaFlexivel {
 interface AulaCancelada {
   id: string;
   data: string;
-  motivo?: string;
 }
 
 interface PresencaRegistro {
@@ -52,7 +51,7 @@ interface AulasPorDia {
 }
 
 interface DiasCancelados {
-  [key: string]: string | undefined; // data ISO -> motivo
+  [key: string]: boolean; // data ISO -> true se cancelado
 }
 
 interface PresencasPorDia {
@@ -160,7 +159,7 @@ const StudentAulas = () => {
         // Criar mapa de dias cancelados
         const canceladosMap: DiasCancelados = {};
         aulasCanceladasData.forEach(c => {
-          canceladosMap[c.data] = c.motivo;
+          canceladosMap[c.data] = true;
         });
         setDiasCancelados(canceladosMap);
 
@@ -198,9 +197,9 @@ const StudentAulas = () => {
       const diaSemana = data.getDay();
       const dataISO = `${anoAtual}-${String(mesAtual + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
       
-      // Verificar se o dia está cancelado
-      if (diasCancelados[dataISO] !== undefined) {
-        continue; // Pular dias cancelados
+      // Pular dias cancelados - eles simplesmente não aparecem no calendário
+      if (diasCancelados[dataISO]) {
+        continue;
       }
       
       const aulasNoDia: AulaFormatada[] = [];
@@ -275,8 +274,8 @@ const StudentAulas = () => {
   };
 
   const handleDayClick = (dia: number, dataISO: string) => {
-    if (diasCancelados[dataISO] !== undefined) {
-      return; // Não abrir modal para dias cancelados
+    if (diasCancelados[dataISO]) {
+      return;
     }
     if (aulasPorDia[dia]) {
       setSelectedDay(dia);
@@ -334,17 +333,17 @@ const StudentAulas = () => {
             </CardContent>
           </Card>
         ) : (
-          <Card>
-            <CardHeader className="pb-2">
+          <Card className="max-w-md mx-auto lg:max-w-lg">
+            <CardHeader className="pb-2 px-3 sm:px-6">
               <div className="flex items-center justify-center">
                 <CardTitle className="text-xl">
                   {getNomeMes(mesAtual)} {anoAtual}
                 </CardTitle>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-2 sm:px-6">
               {/* Days of week header */}
-              <div className="grid grid-cols-7 gap-1 mb-2">
+              <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-2">
                 {diasSemana.map((dia) => (
                   <div key={dia} className="text-center text-sm font-medium text-muted-foreground py-2">
                     {dia}
@@ -353,11 +352,10 @@ const StudentAulas = () => {
               </div>
 
               {/* Calendar grid */}
-              <div className="grid grid-cols-7 gap-1">
+              <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
                 {diasDoMes.map((item, index) => {
                   const temAula = item.dia && aulasPorDia[item.dia];
                   const ehHoje = item.dia === hoje.getDate();
-                  const isCancelado = item.dataISO && diasCancelados[item.dataISO] !== undefined;
                   const temAulaFlexivel = item.dia && aulasPorDia[item.dia]?.some(a => a.isFlexivel);
                   const presencaStatus = item.dataISO ? presencasPorDia[item.dataISO] : null;
                   const isPassado = item.dia && new Date(anoAtual, mesAtual, item.dia) < new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
@@ -367,31 +365,27 @@ const StudentAulas = () => {
                       key={index}
                       className={`
                         relative aspect-square flex flex-col items-center justify-center rounded-lg transition-colors
-                        ${item.dia && !isCancelado ? "cursor-pointer hover:bg-accent/50" : ""}
+                        ${item.dia ? "cursor-pointer hover:bg-accent/50" : ""}
                         ${ehHoje ? "ring-2 ring-primary" : ""}
-                        ${isCancelado ? "bg-destructive/10" : ""}
                         ${presencaStatus === "presente" ? "bg-green-500/20" : ""}
                         ${presencaStatus === "falta" ? "bg-red-500/20" : ""}
-                        ${temAulaFlexivel && !isCancelado && !presencaStatus ? "bg-accent/30" : ""}
-                        ${temAula && !temAulaFlexivel && !isCancelado && !presencaStatus ? "bg-primary/10" : ""}
+                        ${temAulaFlexivel && !presencaStatus ? "bg-accent/30" : ""}
+                        ${temAula && !temAulaFlexivel && !presencaStatus ? "bg-primary/10" : ""}
                       `}
                       onClick={() => item.dia && handleDayClick(item.dia, item.dataISO)}
                     >
                       {item.dia && (
                         <>
-                          <span className={`text-sm ${ehHoje ? "font-bold text-primary" : isCancelado ? "text-destructive line-through" : "text-foreground"}`}>
+                          <span className={`text-sm ${ehHoje ? "font-bold text-primary" : "text-foreground"}`}>
                             {item.dia}
                           </span>
-                          {isCancelado && (
-                            <X className="absolute bottom-1 h-3 w-3 text-destructive" />
-                          )}
-                          {presencaStatus === "presente" && (
+                        {presencaStatus === "presente" && (
                             <CheckCircle2 className="absolute bottom-0.5 h-3 w-3 text-green-600" />
                           )}
-                          {presencaStatus === "falta" && isPassado && temAula && (
+                          {presencaStatus === "falta" && (
                             <XCircle className="absolute bottom-0.5 h-3 w-3 text-red-500" />
                           )}
-                          {temAula && !isCancelado && !presencaStatus && (
+                          {temAula && !presencaStatus && (
                             <div className={`absolute bottom-1 w-2 h-2 rounded-full ${temAulaFlexivel ? "bg-accent-foreground" : "bg-primary"}`} />
                           )}
                         </>
@@ -418,10 +412,6 @@ const StudentAulas = () => {
                 <div className="flex items-center gap-2">
                   <XCircle className="w-3 h-3 text-red-500" />
                   <span className="text-sm text-muted-foreground">Falta</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <X className="w-3 h-3 text-destructive" />
-                  <span className="text-sm text-muted-foreground">Cancelada</span>
                 </div>
               </div>
             </CardContent>

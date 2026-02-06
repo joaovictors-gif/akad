@@ -1,33 +1,46 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Menu, Search, FileText } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Menu, Search, FileText, Loader2 } from "lucide-react";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Input } from "@/components/ui/input";
 
 interface Report {
-  id: string;
-  month: string;
-  year: number;
+  name: string;
+  link: string;
 }
 
-const mockReports: Report[] = [
-  { id: "1", month: "Janeiro", year: 2026 },
-  { id: "2", month: "Dezembro", year: 2025 },
-  { id: "3", month: "Novembro", year: 2025 },
-  { id: "4", month: "Outubro", year: 2025 },
-  { id: "5", month: "Setembro", year: 2025 },
-];
+const API_URL = "https://app-vaglvpp5la-uc.a.run.app/files";
 
 export default function Reports() {
-  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [reports, setReports] = useState<Report[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredReports = mockReports.filter(
-    (report) =>
-      report.month.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.year.toString().includes(searchTerm)
+  useEffect(() => {
+    const fetchReports = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(API_URL);
+        if (!response.ok) throw new Error("Erro ao carregar relatórios");
+        const data = await response.json();
+        setReports(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Erro desconhecido");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchReports();
+  }, []);
+
+  const filteredReports = reports.filter((report) =>
+    report.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleOpenReport = (link: string) => {
+    window.open(link, "_blank", "noopener,noreferrer");
+  };
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -58,7 +71,7 @@ export default function Reports() {
             <div className="relative w-72">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar (mês ou ano)"
+                placeholder="Buscar relatório..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-11 bg-muted/50 border-border/50 rounded-xl h-11 focus:bg-muted transition-all duration-200"
@@ -74,7 +87,7 @@ export default function Reports() {
             <div className="relative">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar (mês ou ano)"
+                placeholder="Buscar relatório..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-11 bg-muted/50 border-border/50 rounded-xl h-11 focus:bg-muted transition-all duration-200"
@@ -82,28 +95,44 @@ export default function Reports() {
             </div>
           </div>
 
+          {/* Loading State */}
+          {loading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && !loading && (
+            <div className="text-center py-12 text-destructive">
+              {error}
+            </div>
+          )}
+
           {/* Reports Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-fade-in-up stagger-1">
-            {filteredReports.length === 0 ? (
-              <div className="col-span-full text-center py-12 text-muted-foreground">
-                Nenhum relatório encontrado
-              </div>
-            ) : (
-              filteredReports.map((report, index) => (
-                <button
-                  key={report.id}
-                  className="card-elevated card-interactive rounded-2xl p-8 flex flex-col items-center gap-4 animate-fade-in-up"
-                  style={{ animationDelay: `${index * 0.05}s` }}
-                  onClick={() => {/* Navigate to report details */}}
-                >
-                  <FileText className="h-12 w-12 text-primary" />
-                  <h3 className="text-lg font-semibold text-primary">
-                    {report.month} De {report.year}
-                  </h3>
-                </button>
-              ))
-            )}
-          </div>
+          {!loading && !error && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-fade-in-up stagger-1">
+              {filteredReports.length === 0 ? (
+                <div className="col-span-full text-center py-12 text-muted-foreground">
+                  Nenhum relatório encontrado
+                </div>
+              ) : (
+                filteredReports.map((report, index) => (
+                  <button
+                    key={index}
+                    className="card-elevated card-interactive rounded-2xl p-8 flex flex-col items-center gap-4 animate-fade-in-up"
+                    style={{ animationDelay: `${index * 0.05}s` }}
+                    onClick={() => handleOpenReport(report.link)}
+                  >
+                    <FileText className="h-12 w-12 text-primary" />
+                    <h3 className="text-lg font-semibold text-primary capitalize">
+                      {report.name}
+                    </h3>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
