@@ -48,7 +48,7 @@ export default function Students() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [filteredByFilters, setFilteredByFilters] = useState<Student[]>([]);
+  const [filteredByFilters, setFilteredByFilters] = useState<Student[] | null>(null);
 
   // Format raw students data
   const students: Student[] = useMemo(() => {
@@ -77,16 +77,26 @@ export default function Students() {
   // FILTRO DE BUSCA (applies on top of filters)
   // =====================
   const filteredStudents = useMemo(() => {
-    const baseList = filteredByFilters.length > 0 || students.length === 0 ? filteredByFilters : students;
+    const baseList = filteredByFilters ?? students;
+    const term = searchTerm.toLowerCase().trim();
     
-    if (!searchTerm) return baseList;
+    if (!term) return baseList.sort((a, b) => a.nome.localeCompare(b.nome));
 
-    return baseList.filter(
-      (s) =>
-        s.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.responsavel.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.cidade.toLowerCase().includes(searchTerm.toLowerCase()),
-    );
+    return baseList
+      .filter(
+        (s) =>
+          s.nome.toLowerCase().includes(term) ||
+          s.responsavel.toLowerCase().includes(term) ||
+          s.cidade.toLowerCase().includes(term),
+      )
+      .sort((a, b) => {
+        // Prioritize name matches
+        const aStartsWithTerm = a.nome.toLowerCase().startsWith(term);
+        const bStartsWithTerm = b.nome.toLowerCase().startsWith(term);
+        if (aStartsWithTerm && !bStartsWithTerm) return -1;
+        if (!aStartsWithTerm && bStartsWithTerm) return 1;
+        return a.nome.localeCompare(b.nome);
+      });
   }, [filteredByFilters, students, searchTerm]);
 
   // =====================
@@ -196,110 +206,142 @@ export default function Students() {
           <div className="w-6" />
         </header>
 
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* FILTROS */}
           <StudentFilters students={students} onFilterChange={handleFilterChange} />
 
           {/* BUSCA + BOTÃO */}
-          <div className="flex gap-4">
-            <div className="relative flex-1 max-w-md">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+            <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar aluno, responsável ou cidade"
+                placeholder="Buscar por nome, responsável ou cidade"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 bg-muted/50 border-border/50 rounded-xl h-11"
               />
             </div>
 
-            <Button onClick={() => setModalOpen(true)} className="rounded-xl h-11 px-6">
+            <Button onClick={() => setModalOpen(true)} className="rounded-xl h-11 px-6 w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               Novo Aluno
             </Button>
           </div>
 
-          {/* ================= TABELA ================= */}
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead className="hidden md:table-cell">Responsável</TableHead>
-                <TableHead className="hidden md:table-cell">Telefone</TableHead>
-                <TableHead className="hidden md:table-cell">Cidade</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-center">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="py-10">
-                    <Loader2 className="animate-spin mx-auto" />
-                  </TableCell>
-                </TableRow>
-              ) : filteredStudents.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="py-20">
-                    <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-xl border-border/50 py-12">
-                      <Users className="h-12 w-12 text-muted-foreground/30 mb-4" />
-                      <h3 className="text-lg font-medium">Nenhum aluno encontrado</h3>
-                      <p className="text-muted-foreground">
-                        {searchTerm ? `Não há resultados para "${searchTerm}"` : "A base de alunos está vazia."}
-                      </p>
-                      {searchTerm && (
-                        <Button variant="link" onClick={() => setSearchTerm("")} className="mt-2 text-primary">
-                          Limpar filtros
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredStudents.map((student) => (
-                  <TableRow key={student.id}>
-                    <TableCell className="font-medium">{student.nome}</TableCell>
-
-                    <TableCell className="hidden md:table-cell">{student.responsavel}</TableCell>
-                    <TableCell className="hidden md:table-cell">{student.telefone}</TableCell>
-                    <TableCell className="hidden md:table-cell">{student.cidade}</TableCell>
-
-                    {/* STATUS */}
-                    <TableCell>
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-medium
-                          ${
-                            student.status?.toLowerCase() === "matriculado"
-                              ? "bg-emerald-100 text-emerald-700 border-emerald-300"
-                              : "bg-muted text-muted-foreground border-border"
-                          }`}
-                      >
-                        {student.status}
-                      </span>
-                    </TableCell>
-
-                    {/* AÇÕES */}
-                    <TableCell>
-                      <div className="flex justify-center gap-2">
-                        <button
-                          onClick={() => handleViewStudent(student)}
-                          className="p-2 hover:bg-blue-500/10 rounded-lg"
-                        >
-                          <Eye className="h-4 w-4 text-blue-500" />
-                        </button>
-                        <button
-                          onClick={() => openDeleteDialog(student)}
-                          className="p-2 hover:bg-red-500/10 rounded-lg"
-                        >
-                          <Trash2 className="h-4 w-4 text-red-500" />
-                        </button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
+          {/* ================= MOBILE: CARDS / DESKTOP: TABELA ================= */}
+          {isLoading ? (
+            <div className="flex justify-center py-10">
+              <Loader2 className="animate-spin h-6 w-6 text-muted-foreground" />
+            </div>
+          ) : filteredStudents.length === 0 ? (
+            <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-xl border-border/50 py-12">
+              <Users className="h-12 w-12 text-muted-foreground/30 mb-4" />
+              <h3 className="text-lg font-medium">Nenhum aluno encontrado</h3>
+              <p className="text-muted-foreground text-sm text-center px-4">
+                {searchTerm ? `Não há resultados para "${searchTerm}"` : "A base de alunos está vazia."}
+              </p>
+              {searchTerm && (
+                <Button variant="link" onClick={() => setSearchTerm("")} className="mt-2 text-primary">
+                  Limpar busca
+                </Button>
               )}
-            </TableBody>
-          </Table>
+            </div>
+          ) : (
+            <>
+              {/* Mobile Cards */}
+              <div className="flex flex-col gap-3 md:hidden">
+                {filteredStudents.map((student) => (
+                  <div
+                    key={student.id}
+                    className="card-elevated rounded-xl p-4 flex items-center gap-3"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{student.nome}</p>
+                      <p className="text-xs text-muted-foreground truncate">{student.cidade}</p>
+                    </div>
+
+                    <span
+                      className={`shrink-0 px-2.5 py-0.5 rounded-full text-[10px] font-medium ${
+                        student.status?.toLowerCase() === "matriculado"
+                          ? "bg-emerald-500/10 text-emerald-500"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {student.status}
+                    </span>
+
+                    <div className="flex shrink-0 gap-1">
+                      <button
+                        onClick={() => handleViewStudent(student)}
+                        className="p-2 hover:bg-accent rounded-lg"
+                      >
+                        <Eye className="h-4 w-4 text-primary" />
+                      </button>
+                      <button
+                        onClick={() => openDeleteDialog(student)}
+                        className="p-2 hover:bg-destructive/10 rounded-lg"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Responsável</TableHead>
+                      <TableHead>Telefone</TableHead>
+                      <TableHead>Cidade</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-center">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredStudents.map((student) => (
+                      <TableRow key={student.id}>
+                        <TableCell className="font-medium">{student.nome}</TableCell>
+                        <TableCell>{student.responsavel}</TableCell>
+                        <TableCell>{student.telefone}</TableCell>
+                        <TableCell>{student.cidade}</TableCell>
+                        <TableCell>
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              student.status?.toLowerCase() === "matriculado"
+                                ? "bg-emerald-500/10 text-emerald-500"
+                                : "bg-muted text-muted-foreground"
+                            }`}
+                          >
+                            {student.status}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-center gap-2">
+                            <button
+                              onClick={() => handleViewStudent(student)}
+                              className="p-2 hover:bg-accent rounded-lg"
+                            >
+                              <Eye className="h-4 w-4 text-primary" />
+                            </button>
+                            <button
+                              onClick={() => openDeleteDialog(student)}
+                              className="p-2 hover:bg-destructive/10 rounded-lg"
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
