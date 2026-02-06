@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Filter, X, MapPin, CheckCircle, Handshake, Users } from "lucide-react";
+import { Filter, X, MapPin, CheckCircle, Handshake, Users, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -35,67 +35,46 @@ export function StudentFilters({ students, onFilterChange }: StudentFiltersProps
   const [selectedCidade, setSelectedCidade] = useState<string>("all");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedConvenio, setSelectedConvenio] = useState<string>("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
-  // Fetch cities to know which ones are convenio
   useEffect(() => {
     fetch(`${API_BASE}/cidades`)
       .then((res) => res.json())
-      .then((data: CidadeData[]) => {
-        setCidades(data);
-      })
-      .catch((err) => {
-        console.error("Erro ao carregar cidades:", err);
-      });
+      .then((data: CidadeData[]) => setCidades(data))
+      .catch((err) => console.error("Erro ao carregar cidades:", err));
   }, []);
 
-  // Get unique cities from students
   const uniqueCidades = useMemo(() => {
     const cidadesSet = new Set(students.map(s => s.cidade).filter(Boolean));
     return Array.from(cidadesSet).sort();
   }, [students]);
 
-  // Get unique statuses from students
   const uniqueStatuses = useMemo(() => {
     const statusSet = new Set(students.map(s => s.status).filter(Boolean));
     return Array.from(statusSet).sort();
   }, [students]);
 
-  // Check if a student's city is convenio
   const isConvenioCidade = (cidadeNome: string) => {
-    const cidade = cidades.find(c => c.nome === cidadeNome);
-    return cidade?.convenio || false;
+    return cidades.find(c => c.nome === cidadeNome)?.convenio || false;
   };
 
-  // Filtered students
   const filteredStudents = useMemo(() => {
     return students.filter(student => {
-      // Filter by cidade
-      if (selectedCidade !== "all" && student.cidade !== selectedCidade) {
-        return false;
-      }
-
-      // Filter by status
-      if (selectedStatus !== "all" && student.status !== selectedStatus) {
-        return false;
-      }
-
-      // Filter by convenio
+      if (selectedCidade !== "all" && student.cidade !== selectedCidade) return false;
+      if (selectedStatus !== "all" && student.status !== selectedStatus) return false;
       if (selectedConvenio !== "all") {
         const isConvenio = isConvenioCidade(student.cidade);
         if (selectedConvenio === "convenio" && !isConvenio) return false;
         if (selectedConvenio === "normal" && isConvenio) return false;
       }
-
       return true;
     });
   }, [students, selectedCidade, selectedStatus, selectedConvenio, cidades]);
 
-  // Notify parent of filter changes
   useEffect(() => {
     onFilterChange(filteredStudents);
   }, [filteredStudents, onFilterChange]);
 
-  // Stats
   const stats = useMemo(() => {
     const byCidade: Record<string, number> = {};
     const byStatus: Record<string, number> = {};
@@ -103,32 +82,13 @@ export function StudentFilters({ students, onFilterChange }: StudentFiltersProps
     let normalCount = 0;
 
     students.forEach(student => {
-      // By cidade
-      if (student.cidade) {
-        byCidade[student.cidade] = (byCidade[student.cidade] || 0) + 1;
-      }
-
-      // By status
-      if (student.status) {
-        byStatus[student.status] = (byStatus[student.status] || 0) + 1;
-      }
-
-      // By convenio
-      if (isConvenioCidade(student.cidade)) {
-        convenioCount++;
-      } else {
-        normalCount++;
-      }
+      if (student.cidade) byCidade[student.cidade] = (byCidade[student.cidade] || 0) + 1;
+      if (student.status) byStatus[student.status] = (byStatus[student.status] || 0) + 1;
+      if (isConvenioCidade(student.cidade)) convenioCount++;
+      else normalCount++;
     });
 
-    return {
-      total: students.length,
-      filtered: filteredStudents.length,
-      byCidade,
-      byStatus,
-      convenio: convenioCount,
-      normal: normalCount,
-    };
+    return { total: students.length, filtered: filteredStudents.length, byCidade, byStatus, convenio: convenioCount, normal: normalCount };
   }, [students, filteredStudents, cidades]);
 
   const hasActiveFilters = selectedCidade !== "all" || selectedStatus !== "all" || selectedConvenio !== "all";
@@ -140,147 +100,147 @@ export function StudentFilters({ students, onFilterChange }: StudentFiltersProps
   };
 
   return (
-    <div className="space-y-4">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="card-elevated rounded-xl p-4">
-          <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-            <Users className="h-4 w-4" />
-            Total
+    <div className="space-y-3">
+      {/* Stats Cards - compact on mobile */}
+      <div className="grid grid-cols-4 gap-2 sm:gap-3">
+        <div className="card-elevated rounded-xl p-2.5 sm:p-4">
+          <div className="flex items-center gap-1.5 text-muted-foreground text-xs sm:text-sm mb-0.5 sm:mb-1">
+            <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 hidden sm:block" />
+            <span className="truncate">Total</span>
           </div>
-          <p className="text-2xl font-bold">{stats.total}</p>
+          <p className="text-lg sm:text-2xl font-bold">{stats.total}</p>
         </div>
 
-        <div className="card-elevated rounded-xl p-4">
-          <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-            <Filter className="h-4 w-4" />
-            Filtrados
+        <div className="card-elevated rounded-xl p-2.5 sm:p-4">
+          <div className="flex items-center gap-1.5 text-muted-foreground text-xs sm:text-sm mb-0.5 sm:mb-1">
+            <Filter className="h-3.5 w-3.5 sm:h-4 sm:w-4 hidden sm:block" />
+            <span className="truncate">Filtrados</span>
           </div>
-          <p className="text-2xl font-bold text-primary">{stats.filtered}</p>
+          <p className="text-lg sm:text-2xl font-bold text-primary">{stats.filtered}</p>
         </div>
 
-        <div className="card-elevated rounded-xl p-4">
-          <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-            <Handshake className="h-4 w-4" />
-            Convênio
+        <div className="card-elevated rounded-xl p-2.5 sm:p-4">
+          <div className="flex items-center gap-1.5 text-muted-foreground text-xs sm:text-sm mb-0.5 sm:mb-1">
+            <Handshake className="h-3.5 w-3.5 sm:h-4 sm:w-4 hidden sm:block" />
+            <span className="truncate">Convênio</span>
           </div>
-          <p className="text-2xl font-bold text-yellow-500">{stats.convenio}</p>
+          <p className="text-lg sm:text-2xl font-bold text-yellow-500">{stats.convenio}</p>
         </div>
 
-        <div className="card-elevated rounded-xl p-4">
-          <div className="flex items-center gap-2 text-muted-foreground text-sm mb-1">
-            <MapPin className="h-4 w-4" />
-            Normal
+        <div className="card-elevated rounded-xl p-2.5 sm:p-4">
+          <div className="flex items-center gap-1.5 text-muted-foreground text-xs sm:text-sm mb-0.5 sm:mb-1">
+            <MapPin className="h-3.5 w-3.5 sm:h-4 sm:w-4 hidden sm:block" />
+            <span className="truncate">Normal</span>
           </div>
-          <p className="text-2xl font-bold text-blue-500">{stats.normal}</p>
+          <p className="text-lg sm:text-2xl font-bold text-blue-500">{stats.normal}</p>
         </div>
       </div>
 
-      {/* Filters Row */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      {/* Filters toggle on mobile */}
+      <div>
+        <button
+          onClick={() => setFiltersOpen(!filtersOpen)}
+          className="sm:hidden flex items-center gap-2 text-sm text-muted-foreground w-full px-3 py-2.5 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
+        >
           <Filter className="h-4 w-4" />
-          Filtros:
+          <span>Filtros</span>
+          {hasActiveFilters && (
+            <Badge variant="default" className="text-[10px] px-1.5 py-0 h-4">
+              {[selectedCidade !== "all", selectedStatus !== "all", selectedConvenio !== "all"].filter(Boolean).length}
+            </Badge>
+          )}
+          <ChevronDown className={`h-4 w-4 ml-auto transition-transform ${filtersOpen ? "rotate-180" : ""}`} />
+        </button>
+
+        {/* Filters Row - always visible on desktop, toggleable on mobile */}
+        <div className={`${filtersOpen ? "flex" : "hidden"} sm:flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 items-start sm:items-center mt-2 sm:mt-0`}>
+          <div className="hidden sm:flex items-center gap-2 text-sm text-muted-foreground">
+            <Filter className="h-4 w-4" />
+            Filtros:
+          </div>
+
+          {/* Cidade Filter */}
+          <Select value={selectedCidade} onValueChange={setSelectedCidade}>
+            <SelectTrigger className="w-full sm:w-[180px] bg-muted/50 border-border/50 rounded-xl h-10">
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <SelectValue placeholder="Todas as cidades" />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="max-h-60">
+              <SelectItem value="all">Todas as cidades ({stats.total})</SelectItem>
+              {uniqueCidades.map((cidade) => (
+                <SelectItem key={cidade} value={cidade}>
+                  <span className="flex items-center gap-2">
+                    {cidade}
+                    <Badge variant="secondary" className="text-xs">{stats.byCidade[cidade] || 0}</Badge>
+                    {isConvenioCidade(cidade) && (
+                      <Badge className="text-xs bg-yellow-500/20 text-yellow-500 border-0">Conv.</Badge>
+                    )}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Status Filter */}
+          <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+            <SelectTrigger className="w-full sm:w-[180px] bg-muted/50 border-border/50 rounded-xl h-10">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                <SelectValue placeholder="Todos os status" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os status ({stats.total})</SelectItem>
+              {uniqueStatuses.map((status) => (
+                <SelectItem key={status} value={status}>
+                  <span className="flex items-center gap-2">
+                    {status}
+                    <Badge variant="secondary" className="text-xs">{stats.byStatus[status] || 0}</Badge>
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Convenio Filter */}
+          <Select value={selectedConvenio} onValueChange={setSelectedConvenio}>
+            <SelectTrigger className="w-full sm:w-[180px] bg-muted/50 border-border/50 rounded-xl h-10">
+              <div className="flex items-center gap-2">
+                <Handshake className="h-4 w-4 text-muted-foreground" />
+                <SelectValue placeholder="Tipo de cidade" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos ({stats.total})</SelectItem>
+              <SelectItem value="convenio">
+                <span className="flex items-center gap-2">
+                  Convênio
+                  <Badge className="text-xs bg-yellow-500/20 text-yellow-500 border-0">{stats.convenio}</Badge>
+                </span>
+              </SelectItem>
+              <SelectItem value="normal">
+                <span className="flex items-center gap-2">
+                  Normal
+                  <Badge variant="secondary" className="text-xs">{stats.normal}</Badge>
+                </span>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="h-10 px-3 text-muted-foreground hover:text-foreground w-full sm:w-auto"
+            >
+              <X className="h-4 w-4 mr-1" />
+              Limpar filtros
+            </Button>
+          )}
         </div>
-
-        {/* Cidade Filter */}
-        <Select value={selectedCidade} onValueChange={setSelectedCidade}>
-          <SelectTrigger className="w-[180px] bg-muted/50 border-border/50 rounded-xl h-10">
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              <SelectValue placeholder="Todas as cidades" />
-            </div>
-          </SelectTrigger>
-          <SelectContent className="max-h-60">
-            <SelectItem value="all">
-              Todas as cidades ({stats.total})
-            </SelectItem>
-            {uniqueCidades.map((cidade) => (
-              <SelectItem key={cidade} value={cidade}>
-                <span className="flex items-center gap-2">
-                  {cidade}
-                  <Badge variant="secondary" className="text-xs">
-                    {stats.byCidade[cidade] || 0}
-                  </Badge>
-                  {isConvenioCidade(cidade) && (
-                    <Badge className="text-xs bg-yellow-500/20 text-yellow-500 border-0">
-                      Conv.
-                    </Badge>
-                  )}
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Status Filter */}
-        <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-          <SelectTrigger className="w-[180px] bg-muted/50 border-border/50 rounded-xl h-10">
-            <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
-              <SelectValue placeholder="Todos os status" />
-            </div>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">
-              Todos os status ({stats.total})
-            </SelectItem>
-            {uniqueStatuses.map((status) => (
-              <SelectItem key={status} value={status}>
-                <span className="flex items-center gap-2">
-                  {status}
-                  <Badge variant="secondary" className="text-xs">
-                    {stats.byStatus[status] || 0}
-                  </Badge>
-                </span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {/* Convenio Filter */}
-        <Select value={selectedConvenio} onValueChange={setSelectedConvenio}>
-          <SelectTrigger className="w-[180px] bg-muted/50 border-border/50 rounded-xl h-10">
-            <div className="flex items-center gap-2">
-              <Handshake className="h-4 w-4 text-muted-foreground" />
-              <SelectValue placeholder="Tipo de cidade" />
-            </div>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">
-              Todos ({stats.total})
-            </SelectItem>
-            <SelectItem value="convenio">
-              <span className="flex items-center gap-2">
-                Convênio
-                <Badge className="text-xs bg-yellow-500/20 text-yellow-500 border-0">
-                  {stats.convenio}
-                </Badge>
-              </span>
-            </SelectItem>
-            <SelectItem value="normal">
-              <span className="flex items-center gap-2">
-                Normal
-                <Badge variant="secondary" className="text-xs">
-                  {stats.normal}
-                </Badge>
-              </span>
-            </SelectItem>
-          </SelectContent>
-        </Select>
-
-        {/* Clear Filters Button */}
-        {hasActiveFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearFilters}
-            className="h-10 px-3 text-muted-foreground hover:text-foreground"
-          >
-            <X className="h-4 w-4 mr-1" />
-            Limpar
-          </Button>
-        )}
       </div>
 
       {/* Active Filters Summary */}
@@ -289,25 +249,19 @@ export function StudentFilters({ students, onFilterChange }: StudentFiltersProps
           {selectedCidade !== "all" && (
             <Badge variant="secondary" className="rounded-lg px-3 py-1">
               Cidade: {selectedCidade}
-              <button onClick={() => setSelectedCidade("all")} className="ml-2 hover:text-destructive">
-                <X className="h-3 w-3" />
-              </button>
+              <button onClick={() => setSelectedCidade("all")} className="ml-2 hover:text-destructive"><X className="h-3 w-3" /></button>
             </Badge>
           )}
           {selectedStatus !== "all" && (
             <Badge variant="secondary" className="rounded-lg px-3 py-1">
               Status: {selectedStatus}
-              <button onClick={() => setSelectedStatus("all")} className="ml-2 hover:text-destructive">
-                <X className="h-3 w-3" />
-              </button>
+              <button onClick={() => setSelectedStatus("all")} className="ml-2 hover:text-destructive"><X className="h-3 w-3" /></button>
             </Badge>
           )}
           {selectedConvenio !== "all" && (
             <Badge variant="secondary" className="rounded-lg px-3 py-1">
               Tipo: {selectedConvenio === "convenio" ? "Convênio" : "Normal"}
-              <button onClick={() => setSelectedConvenio("all")} className="ml-2 hover:text-destructive">
-                <X className="h-3 w-3" />
-              </button>
+              <button onClick={() => setSelectedConvenio("all")} className="ml-2 hover:text-destructive"><X className="h-3 w-3" /></button>
             </Badge>
           )}
         </div>
