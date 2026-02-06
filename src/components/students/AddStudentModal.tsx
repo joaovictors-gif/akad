@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
 import { differenceInYears } from "date-fns";
-import { Check, AlertCircle, Loader2 } from "lucide-react";
+import { Check, AlertCircle, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -33,6 +34,7 @@ interface CidadeData {
     atraso: number;
   };
 }
+
 interface AddStudentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -61,7 +63,6 @@ type StudentFormState = Omit<StudentFormData, 'senha' | 'responsavel'> & { respo
 const religioes = ["Católica", "Evangélica", "Espírita", "Budista", "Outra", "Sem religião"];
 const faixas = ["Branca", "Amarela", "Laranja", "Verde", "Azul", "Roxa", "Marrom", "Preta", "Vermelha"];
 
-// Format phone: (XX) XXXXX-XXXX
 const formatPhone = (value: string): string => {
   const digits = value.replace(/\D/g, "").slice(0, 11);
   if (digits.length <= 2) return digits.length ? `(${digits}` : "";
@@ -69,190 +70,240 @@ const formatPhone = (value: string): string => {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 };
 
-// Format CPF: XXX.XXX.XXX-XX
-const formatCPF = (value: string): string => {
-  const digits = value.replace(/\D/g, "").slice(0, 11);
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 6) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
-  if (digits.length <= 9) return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6)}`;
-  return `${digits.slice(0, 3)}.${digits.slice(3, 6)}.${digits.slice(6, 9)}-${digits.slice(9)}`;
-};
-
-// Remove formatting from phone
 const unformatPhone = (value: string): string => value.replace(/\D/g, "");
 
-export function AddStudentModal({ open, onOpenChange, onAddStudent, isLoading = false }: AddStudentModalProps) {
-  const [formData, setFormData] = useState<StudentFormState>({
-    nome: "",
-    dataNascimento: "",
-    religiao: "",
-    cidade: "",
-    email: "",
-    faixaInicial: "",
-    telefone: "",
-    maiorIdade: true,
-    observacoes: "",
-    responsavel: "",
-  });
+const INITIAL_FORM: StudentFormState = {
+  nome: "",
+  dataNascimento: "",
+  religiao: "",
+  cidade: "",
+  email: "",
+  faixaInicial: "",
+  telefone: "",
+  maiorIdade: true,
+  observacoes: "",
+  responsavel: "",
+};
 
+type StepId = "nome" | "nascimento" | "religiao" | "cidade" | "email" | "faixa" | "responsavel" | "telefone" | "observacoes";
+
+interface StepDef {
+  id: StepId;
+  label: string;
+}
+
+export function AddStudentModal({ open, onOpenChange, onAddStudent, isLoading = false }: AddStudentModalProps) {
+  const [formData, setFormData] = useState<StudentFormState>({ ...INITIAL_FORM });
+  const [currentStep, setCurrentStep] = useState(0);
   const [cidades, setCidades] = useState<CidadeData[]>([]);
   const [loadingCidades, setLoadingCidades] = useState(false);
 
-  // Fetch cities from API when modal opens
   useEffect(() => {
     if (open) {
       setLoadingCidades(true);
       fetch(`${API_BASE}/cidades`)
         .then((res) => res.json())
-        .then((data: CidadeData[]) => {
-          const sorted = data.sort((a, b) => a.nome.localeCompare(b.nome));
-          setCidades(sorted);
-        })
-        .catch((err) => {
-          console.error("Erro ao carregar cidades:", err);
-          setCidades([]);
-        })
+        .then((data: CidadeData[]) => setCidades(data.sort((a, b) => a.nome.localeCompare(b.nome))))
+        .catch(() => setCidades([]))
         .finally(() => setLoadingCidades(false));
     }
   }, [open]);
 
-  // Check if selected city has active convenio
   const selectedCidade = cidades.find(c => c.nome === formData.cidade);
-  const hasActiveConvenio = selectedCidade?.convenio && 
-    selectedCidade.convenioFim && 
+  const hasActiveConvenio = selectedCidade?.convenio &&
+    selectedCidade.convenioFim &&
     new Date(selectedCidade.convenioFim) >= new Date();
 
   const isMaiorIdade = useMemo(() => {
     if (!formData.dataNascimento) return null;
-    const birthDate = new Date(formData.dataNascimento);
-    const age = differenceInYears(new Date(), birthDate);
-    return age >= 18;
+    return differenceInYears(new Date(), new Date(formData.dataNascimento)) >= 18;
   }, [formData.dataNascimento]);
 
-  const handleSubmit = () => {
-    // Validate phone (11 digits) and CPF (11 digits)
-    const phoneDigits = unformatPhone(formData.telefone);
-    
-    if (phoneDigits.length !== 11) {
-      return; // Phone must have exactly 11 digits
+  // Dynamic steps based on minor status
+  const steps: StepDef[] = useMemo(() => {
+    const base: StepDef[] = [
+      { id: "nome", label: "Nome" },
+      { id: "nascimento", label: "Data de Nascimento" },
+      { id: "religiao", label: "Religião" },
+      { id: "cidade", label: "Cidade" },
+      { id: "email", label: "Email" },
+      { id: "faixa", label: "Faixa Inicial" },
+    ];
+
+    if (isMaiorIdade === false) {
+      base.push({ id: "responsavel", label: "Responsável" });
+      base.push({ id: "telefone", label: "Telefone do Responsável" });
+    } else {
+      base.push({ id: "telefone", label: "Telefone" });
     }
-    
-    // Generate password from birth date (DDMMYYYY format)
+
+    base.push({ id: "observacoes", label: "Observações" });
+    return base;
+  }, [isMaiorIdade]);
+
+  const totalSteps = steps.length;
+  const progress = ((currentStep + 1) / totalSteps) * 100;
+  const currentStepDef = steps[currentStep];
+
+  // Clamp step if steps change (e.g. minor→adult reduces steps)
+  useEffect(() => {
+    if (currentStep >= steps.length) {
+      setCurrentStep(steps.length - 1);
+    }
+  }, [steps.length, currentStep]);
+
+  const isCurrentStepValid = useCallback(() => {
+    if (!currentStepDef) return false;
+    switch (currentStepDef.id) {
+      case "nome": return formData.nome.trim().length > 0;
+      case "nascimento": return formData.dataNascimento.length > 0;
+      case "religiao": return formData.religiao.length > 0;
+      case "cidade": return formData.cidade.length > 0;
+      case "email": return formData.email.includes("@");
+      case "faixa": return formData.faixaInicial.length > 0;
+      case "responsavel": return formData.responsavel.trim().length > 0;
+      case "telefone": return unformatPhone(formData.telefone).length === 11;
+      case "observacoes": return true; // optional
+      default: return true;
+    }
+  }, [currentStepDef, formData]);
+
+  const isLastStep = currentStep === totalSteps - 1;
+
+  const handleNext = () => {
+    if (isLastStep) {
+      handleSubmit();
+    } else {
+      setCurrentStep((s) => Math.min(s + 1, totalSteps - 1));
+    }
+  };
+
+  const handleBack = () => setCurrentStep((s) => Math.max(s - 1, 0));
+
+  const handleSubmit = () => {
+    const phoneDigits = unformatPhone(formData.telefone);
+    if (phoneDigits.length !== 11) return;
+
     let senha = "";
     if (formData.dataNascimento) {
       const [year, month, day] = formData.dataNascimento.split("-");
       senha = `${day}${month}${year}`;
     }
-    
-    const studentData: StudentFormData = { 
-      ...formData, 
-      telefone: phoneDigits, // Send unformatted phone
-      maiorIdade: isMaiorIdade ?? true, 
+
+    onAddStudent({
+      ...formData,
+      telefone: phoneDigits,
+      maiorIdade: isMaiorIdade ?? true,
       responsavel: isMaiorIdade ? "Próprio" : formData.responsavel,
       senha,
-      convenioAtivo: hasActiveConvenio,
+      convenioAtivo: hasActiveConvenio || false,
       convenioFim: hasActiveConvenio ? selectedCidade?.convenioFim : undefined,
-    };
-    onAddStudent(studentData);
-  };
-
-  const resetForm = () => {
-    setFormData({
-      nome: "",
-      dataNascimento: "",
-      religiao: "",
-      cidade: "",
-      email: "",
-      faixaInicial: "",
-      telefone: "",
-      maiorIdade: true,
-      observacoes: "",
-      responsavel: "",
     });
   };
 
-  const handleCancel = () => {
-    onOpenChange(false);
+  const handleOpenChange = (val: boolean) => {
+    if (!val) {
+      setFormData({ ...INITIAL_FORM });
+      setCurrentStep(0);
+    }
+    onOpenChange(val);
   };
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto card-elevated border-border/30 rounded-2xl">
-        <DialogHeader className="pb-2">
-          <DialogTitle className="text-xl font-bold">Adicionar Novo Aluno</DialogTitle>
-          <div className="divider-gradient mt-4" />
-        </DialogHeader>
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && isCurrentStepValid() && !isLoading) {
+      e.preventDefault();
+      handleNext();
+    }
+  };
 
-        <div className="space-y-5 py-4">
-          {/* Nome */}
-          <div className="space-y-2">
-            <Label htmlFor="nome" className="text-sm font-medium">Nome *</Label>
+  const renderStepContent = () => {
+    if (!currentStepDef) return null;
+
+    switch (currentStepDef.id) {
+      case "nome":
+        return (
+          <div className="space-y-3">
+            <Label htmlFor="nome" className="text-sm font-medium">Nome completo *</Label>
             <Input
               id="nome"
-              placeholder="Nome completo"
+              placeholder="Nome completo do aluno"
               value={formData.nome}
               onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-              className="bg-muted/50 border-border/50 rounded-xl h-11 focus:bg-muted transition-all duration-200"
+              onKeyDown={handleKeyDown}
+              autoFocus
+              className="bg-muted/50 border-border/50 rounded-xl h-12 text-base focus:bg-muted transition-all duration-200"
             />
           </div>
+        );
 
-          {/* Data de Nascimento */}
-          <div className="space-y-2">
+      case "nascimento":
+        return (
+          <div className="space-y-3">
             <Label htmlFor="dataNascimento" className="text-sm font-medium">Data de Nascimento *</Label>
             <Input
               id="dataNascimento"
               type="date"
               value={formData.dataNascimento}
               onChange={(e) => setFormData({ ...formData, dataNascimento: e.target.value })}
-              className="bg-muted/50 border-border/50 rounded-xl h-11 focus:bg-muted transition-all duration-200"
+              onKeyDown={handleKeyDown}
+              autoFocus
+              className="bg-muted/50 border-border/50 rounded-xl h-12 text-base focus:bg-muted transition-all duration-200"
             />
+            {isMaiorIdade !== null && (
+              <div className={`flex items-center gap-2 text-sm font-medium px-4 py-3 rounded-xl mt-2 ${
+                isMaiorIdade
+                  ? "bg-green-500/10 text-green-500"
+                  : "bg-yellow-500/10 text-yellow-500"
+              }`}>
+                <Check className="h-4 w-4" />
+                {isMaiorIdade ? "Maior de 18 anos" : "Menor de 18 anos"}
+              </div>
+            )}
           </div>
+        );
 
-          {/* Religião */}
-          <div className="space-y-2">
+      case "religiao":
+        return (
+          <div className="space-y-3">
             <Label className="text-sm font-medium">Religião *</Label>
             <Select
               value={formData.religiao}
               onValueChange={(value) => setFormData({ ...formData, religiao: value })}
             >
-              <SelectTrigger className="bg-muted/50 border-border/50 rounded-xl h-11">
+              <SelectTrigger className="bg-muted/50 border-border/50 rounded-xl h-12 text-base">
                 <SelectValue placeholder="Selecione uma religião" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
-                {religioes.map((religiao) => (
-                  <SelectItem key={religiao} value={religiao} className="rounded-lg">
-                    {religiao}
-                  </SelectItem>
+                {religioes.map((r) => (
+                  <SelectItem key={r} value={r} className="rounded-lg">{r}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+        );
 
-          {/* Cidade */}
-          <div className="space-y-2">
+      case "cidade":
+        return (
+          <div className="space-y-3">
             <Label className="text-sm font-medium">Cidade *</Label>
             <Select
               value={formData.cidade}
               onValueChange={(value) => setFormData({ ...formData, cidade: value })}
               disabled={loadingCidades}
             >
-              <SelectTrigger className="bg-muted/50 border-border/50 rounded-xl h-11">
-                <SelectValue placeholder={loadingCidades ? "Carregando cidades..." : "Selecione uma cidade"} />
+              <SelectTrigger className="bg-muted/50 border-border/50 rounded-xl h-12 text-base">
+                <SelectValue placeholder={loadingCidades ? "Carregando..." : "Selecione uma cidade"} />
               </SelectTrigger>
               <SelectContent className="rounded-xl max-h-60">
                 {cidades.length === 0 && !loadingCidades ? (
-                  <div className="px-3 py-2 text-sm text-muted-foreground">
-                    Nenhuma cidade cadastrada
-                  </div>
+                  <div className="px-3 py-2 text-sm text-muted-foreground">Nenhuma cidade cadastrada</div>
                 ) : (
-                  cidades.map((cidade) => (
-                    <SelectItem key={cidade.nome} value={cidade.nome} className="rounded-lg">
+                  cidades.map((c) => (
+                    <SelectItem key={c.nome} value={c.nome} className="rounded-lg">
                       <span className="flex items-center gap-2">
-                        {cidade.nome}
-                        {cidade.convenio && (
-                          <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-500">
-                            Convênio
-                          </span>
+                        {c.nome}
+                        {c.convenio && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-500">Convênio</span>
                         )}
                       </span>
                     </SelectItem>
@@ -260,31 +311,31 @@ export function AddStudentModal({ open, onOpenChange, onAddStudent, isLoading = 
                 )}
               </SelectContent>
             </Select>
-          </div>
 
-          {/* Aviso de Convênio Ativo */}
-          {hasActiveConvenio && (
-            <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30">
-              <div className="flex items-start gap-2 text-sm text-green-400">
-                <svg className="h-5 w-5 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <div>
-                  <p className="font-medium">Cidade com Convênio Ativo</p>
-                  <p className="text-xs mt-1 text-muted-foreground">
-                    As mensalidades deste aluno serão automaticamente marcadas como pagas até o término do convênio
-                    {selectedCidade?.convenioFim && (
-                      <span className="font-medium text-green-400">
-                        {" "}({new Date(selectedCidade.convenioFim).toLocaleDateString("pt-BR")})
-                      </span>
-                    )}
-                  </p>
+            {hasActiveConvenio && (
+              <div className="p-3 rounded-xl bg-green-500/10 border border-green-500/30 mt-2">
+                <div className="flex items-start gap-2 text-sm text-green-500">
+                  <Check className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-medium">Convênio Ativo</p>
+                    <p className="text-xs mt-0.5 text-muted-foreground">
+                      Mensalidades pagas até{" "}
+                      {selectedCidade?.convenioFim && (
+                        <span className="font-medium text-green-500">
+                          {new Date(selectedCidade.convenioFim).toLocaleDateString("pt-BR")}
+                        </span>
+                      )}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
+        );
 
-          <div className="space-y-2">
+      case "email":
+        return (
+          <div className="space-y-3">
             <Label htmlFor="email" className="text-sm font-medium">Email *</Label>
             <Input
               id="email"
@@ -292,135 +343,154 @@ export function AddStudentModal({ open, onOpenChange, onAddStudent, isLoading = 
               placeholder="exemplo@email.com"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="bg-muted/50 border-border/50 rounded-xl h-11 focus:bg-muted transition-all duration-200"
+              onKeyDown={handleKeyDown}
+              autoFocus
+              className="bg-muted/50 border-border/50 rounded-xl h-12 text-base focus:bg-muted transition-all duration-200"
             />
           </div>
+        );
 
-          {/* Faixa Inicial */}
-          <div className="space-y-2">
+      case "faixa":
+        return (
+          <div className="space-y-3">
             <Label className="text-sm font-medium">Faixa Inicial *</Label>
             <Select
               value={formData.faixaInicial}
               onValueChange={(value) => setFormData({ ...formData, faixaInicial: value })}
             >
-              <SelectTrigger className="bg-muted/50 border-border/50 rounded-xl h-11">
+              <SelectTrigger className="bg-muted/50 border-border/50 rounded-xl h-12 text-base">
                 <SelectValue placeholder="Selecione uma faixa" />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
-                {faixas.map((faixa) => (
-                  <SelectItem key={faixa} value={faixa} className="rounded-lg">
-                    {faixa}
-                  </SelectItem>
+                {faixas.map((f) => (
+                  <SelectItem key={f} value={f} className="rounded-lg">{f}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
+        );
 
-          {/* Telefone - Para maiores de idade */}
-          {isMaiorIdade !== false && (
-            <div className="space-y-2">
-              <Label htmlFor="telefone" className="text-sm font-medium">Telefone *</Label>
-              <Input
-                id="telefone"
-                placeholder="(89) 81234-5678"
-                value={formData.telefone}
-                onChange={(e) => setFormData({ ...formData, telefone: formatPhone(e.target.value) })}
-                className="bg-muted/50 border-border/50 rounded-xl h-11 focus:bg-muted transition-all duration-200"
-                maxLength={16}
-              />
-            </div>
-          )}
-
-          {/* Maior de Idade - Calculado automaticamente */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Aluno é maior de idade?</Label>
-            <div className={`flex items-center gap-2 text-sm font-medium px-4 py-3 rounded-xl ${
-              isMaiorIdade === null 
-                ? "bg-muted/30 text-muted-foreground" 
-                : isMaiorIdade 
-                  ? "bg-green-500/10 text-green-400" 
-                  : "bg-yellow-500/10 text-yellow-400"
-            }`}>
-              {isMaiorIdade === null ? (
-                <AlertCircle className="h-4 w-4" />
-              ) : (
-                <Check className="h-4 w-4" />
-              )}
-              {isMaiorIdade === null 
-                ? "Informe a data de nascimento" 
-                : isMaiorIdade 
-                  ? "Sim - Maior de 18 anos" 
-                  : "Não - Menor de 18 anos"}
-            </div>
+      case "responsavel":
+        return (
+          <div className="space-y-3">
+            <Label htmlFor="responsavel" className="text-sm font-medium">Nome do Responsável *</Label>
+            <Input
+              id="responsavel"
+              placeholder="Nome completo do responsável"
+              value={formData.responsavel}
+              onChange={(e) => setFormData({ ...formData, responsavel: e.target.value })}
+              onKeyDown={handleKeyDown}
+              autoFocus
+              className="bg-muted/50 border-border/50 rounded-xl h-12 text-base focus:bg-muted transition-all duration-200"
+            />
           </div>
+        );
 
-          {/* Responsável e Telefone do Responsável - Apenas para menores de idade */}
-          {isMaiorIdade === false && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="responsavel" className="text-sm font-medium">Nome do Responsável *</Label>
-                <Input
-                  id="responsavel"
-                  placeholder="Nome completo do responsável"
-                  value={formData.responsavel}
-                  onChange={(e) => setFormData({ ...formData, responsavel: e.target.value })}
-                  className="bg-muted/50 border-border/50 rounded-xl h-11 focus:bg-muted transition-all duration-200"
-                />
-              </div>
+      case "telefone":
+        return (
+          <div className="space-y-3">
+            <Label htmlFor="telefone" className="text-sm font-medium">
+              {isMaiorIdade === false ? "Telefone do Responsável *" : "Telefone *"}
+            </Label>
+            <Input
+              id="telefone"
+              placeholder="(89) 81234-5678"
+              value={formData.telefone}
+              onChange={(e) => setFormData({ ...formData, telefone: formatPhone(e.target.value) })}
+              onKeyDown={handleKeyDown}
+              autoFocus
+              className="bg-muted/50 border-border/50 rounded-xl h-12 text-base focus:bg-muted transition-all duration-200"
+              maxLength={16}
+            />
+          </div>
+        );
 
-              <div className="space-y-2">
-                <Label htmlFor="telefone-responsavel" className="text-sm font-medium">Telefone do Responsável *</Label>
-                <Input
-                  id="telefone-responsavel"
-                  placeholder="(89) 81234-5678"
-                  value={formData.telefone}
-                  onChange={(e) => setFormData({ ...formData, telefone: formatPhone(e.target.value) })}
-                  className="bg-muted/50 border-border/50 rounded-xl h-11 focus:bg-muted transition-all duration-200"
-                  maxLength={16}
-                />
-              </div>
-            </>
-          )}
-
-          {/* Observações */}
-          <div className="space-y-2">
-            <Label htmlFor="observacoes" className="text-sm font-medium">Observações</Label>
+      case "observacoes":
+        return (
+          <div className="space-y-3">
+            <Label htmlFor="observacoes" className="text-sm font-medium">Observações <span className="text-muted-foreground">(opcional)</span></Label>
             <Textarea
               id="observacoes"
               placeholder="Informações adicionais..."
               value={formData.observacoes}
               onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-              className="bg-muted/50 border-border/50 rounded-xl resize-none focus:bg-muted transition-all duration-200"
-              rows={3}
+              autoFocus
+              className="bg-muted/50 border-border/50 rounded-xl resize-none text-base focus:bg-muted transition-all duration-200"
+              rows={4}
             />
           </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md border-border/30 rounded-2xl p-0 overflow-hidden">
+        {/* Progress bar */}
+        <div className="px-6 pt-6 pb-0">
+          <Progress value={progress} className="h-1.5 bg-muted/50" />
+          <p className="text-xs text-muted-foreground mt-2 text-right">
+            {currentStep + 1} de {totalSteps}
+          </p>
         </div>
 
-        <div className="divider-gradient mb-4" />
+        <div className="px-6 pb-2">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">{currentStepDef?.label}</DialogTitle>
+          </DialogHeader>
+        </div>
 
-        <div className="flex justify-end gap-3">
-          <Button 
-            variant="secondary" 
-            onClick={handleCancel}
-            className="rounded-xl px-6 hover-lift"
-          >
-            Cancelar
-          </Button>
-          <Button 
-            onClick={handleSubmit} 
+        {/* Step content */}
+        <div className="px-6 py-2 min-h-[140px] flex flex-col justify-center">
+          {renderStepContent()}
+        </div>
+
+        {/* Navigation */}
+        <div className="px-6 pb-6 pt-2 flex items-center justify-between gap-3">
+          <Button
+            variant="ghost"
+            onClick={currentStep === 0 ? () => handleOpenChange(false) : handleBack}
+            className="rounded-xl px-4 h-11"
             disabled={isLoading}
-            className={`bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 rounded-xl px-6 shadow-lg shadow-green-500/20 transition-all duration-300 ease-in-out ${
-              isLoading 
-                ? "scale-95 opacity-90" 
-                : "hover:scale-105 hover:shadow-xl hover:shadow-green-500/30"
+          >
+            {currentStep === 0 ? (
+              "Cancelar"
+            ) : (
+              <span className="flex items-center gap-1">
+                <ChevronLeft className="h-4 w-4" />
+                Voltar
+              </span>
+            )}
+          </Button>
+
+          <Button
+            onClick={handleNext}
+            disabled={!isCurrentStepValid() || isLoading}
+            className={`rounded-xl px-6 h-11 ${
+              isLastStep
+                ? "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg shadow-green-500/20"
+                : ""
             }`}
           >
-            <span className={`flex items-center justify-center transition-all duration-300 ${isLoading ? "gap-2" : "gap-0"}`}>
-              <Loader2 className={`h-4 w-4 transition-all duration-300 ${isLoading ? "opacity-100 animate-spin mr-0" : "opacity-0 w-0 -ml-2"}`} />
-              <span className="transition-opacity duration-200">
-                {isLoading ? "Cadastrando..." : "Adicionar Aluno"}
+            {isLoading ? (
+              <span className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Cadastrando...
               </span>
-            </span>
+            ) : isLastStep ? (
+              <span className="flex items-center gap-2">
+                <Check className="h-4 w-4" />
+                Cadastrar
+              </span>
+            ) : (
+              <span className="flex items-center gap-1">
+                Próximo
+                <ChevronRight className="h-4 w-4" />
+              </span>
+            )}
           </Button>
         </div>
       </DialogContent>
