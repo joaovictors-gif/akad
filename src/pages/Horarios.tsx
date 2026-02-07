@@ -1022,50 +1022,60 @@ export default function Horarios() {
                           <div className="flex items-center justify-center py-8">
                             <Loader2 className="h-6 w-6 animate-spin text-primary" />
                           </div>
-                        ) : aulasFlexiveis.length === 0 ? (
-                          <div className="text-center py-12">
-                            <CalendarPlus className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                            <p className="text-muted-foreground">Nenhuma aula flexível cadastrada</p>
-                            <Button
-                              onClick={() => setModalFlexivelOpen(true)}
-                              variant="link"
-                              className="mt-2"
-                            >
-                              Adicionar aula especial
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            {aulasFlexiveis.map((aula) => (
-                              <div
-                                key={aula.id}
-                                className="flex items-center gap-4 p-3 bg-accent/20 rounded-xl border border-accent/30 hover:bg-accent/30 transition-colors"
-                              >
-                                <div className="flex-shrink-0 w-24 text-center">
-                                  <span className="px-3 py-1.5 bg-accent text-accent-foreground text-xs font-semibold rounded-lg block">
-                                    {formatDataBR(aula.data)}
-                                  </span>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-medium text-sm">{formatHorario(aula.horarioInicio, aula.duracao)}</span>
-                                    <span className="text-xs text-muted-foreground">•</span>
-                                    <span className="text-xs text-muted-foreground">{aula.tipoAula}</span>
-                                  </div>
-                                  <p className="text-xs text-muted-foreground mt-0.5">{PROFESSOR}</p>
-                                </div>
+                        ) : (() => {
+                          const now = new Date();
+                          const prefixoMesAtual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+                          const flexiveisMesAtual = aulasFlexiveis.filter((a) => a.data.startsWith(prefixoMesAtual));
+
+                          if (flexiveisMesAtual.length === 0) {
+                            return (
+                              <div className="text-center py-12">
+                                <CalendarPlus className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+                                <p className="text-muted-foreground">Nenhuma aula flexível neste mês</p>
                                 <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => handleDeleteClick(aula.id, "flexivel")}
-                                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex-shrink-0"
+                                  onClick={() => setModalFlexivelOpen(true)}
+                                  variant="link"
+                                  className="mt-2"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  Adicionar aula especial
                                 </Button>
                               </div>
-                            ))}
-                          </div>
-                        )}
+                            );
+                          }
+
+                          return (
+                            <div className="space-y-2">
+                              {flexiveisMesAtual.map((aula) => (
+                                <div
+                                  key={aula.id}
+                                  className="flex items-center gap-4 p-3 bg-accent/20 rounded-xl border border-accent/30 hover:bg-accent/30 transition-colors"
+                                >
+                                  <div className="flex-shrink-0 w-24 text-center">
+                                    <span className="px-3 py-1.5 bg-accent text-accent-foreground text-xs font-semibold rounded-lg block">
+                                      {formatDataBR(aula.data)}
+                                    </span>
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="font-medium text-sm">{formatHorario(aula.horarioInicio, aula.duracao)}</span>
+                                      <span className="text-xs text-muted-foreground">•</span>
+                                      <span className="text-xs text-muted-foreground">{aula.tipoAula}</span>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-0.5">{PROFESSOR}</p>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => handleDeleteClick(aula.id, "flexivel")}
+                                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex-shrink-0"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </CardContent>
                     </Card>
                   </TabsContent>
