@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
-import { TrendingUp, Tag, Clock, Menu, Loader2 } from "lucide-react";
+import { TrendingUp, Tag, Clock, Loader2 } from "lucide-react";
+import { QuickActions } from "@/components/dashboard/QuickActions";
+import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { AppSidebar } from "@/components/AppSidebar";
 import { PaymentCard } from "@/components/dashboard/PaymentCard";
 import { YearlyChart } from "@/components/dashboard/YearlyChart";
@@ -78,37 +80,28 @@ function DashboardContent() {
       <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
       <div className="flex-1 h-screen overflow-y-auto">
-        {/* Mobile Header */}
-        <motion.header 
-          initial={{ y: -20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          className="lg:hidden sticky top-0 z-30 glass border-b border-border/30 p-4 flex items-center justify-between"
-        >
-          <div className="flex items-center gap-4">
-            <motion.button
-              onClick={() => setSidebarOpen(true)}
-              className="p-2.5 rounded-xl hover:bg-muted/80 transition-all duration-200"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Menu className="h-5 w-5 text-foreground" />
-            </motion.button>
-            <h1 className="text-xl font-extrabold tracking-wider text-gradient">AKAD</h1>
-          </div>
-          <ThemeToggle />
-        </motion.header>
-        
-        {/* Desktop Header */}
-        <div className="hidden lg:flex justify-end items-center gap-3 p-4 pb-0">
-          <ThemeToggle />
-        </div>
+        <AdminPageHeader
+          title="Dashboard"
+          subtitle="Visão geral"
+          onMenuClick={() => setSidebarOpen(true)}
+          rightContent={<ThemeToggle />}
+        />
 
         <main className="p-4 md:p-6 lg:p-8">
+          {/* Quick Actions */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
+            transition={{ duration: 0.3 }}
+            className="mb-6"
+          >
+            <QuickActions />
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
             className="mb-6"
           >
             <MonthSelector />

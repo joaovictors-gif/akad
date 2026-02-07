@@ -95,7 +95,7 @@ export function ChangeBeltModal({
           mensagem: {
             title: `🥋 Parabéns pela Faixa ${newBelt.value}!`,
             body: `Você conquistou a faixa ${newBelt.value}! Toque para ver sua conquista.`,
-            link: `https://akad1.lovable.app/aluno/perfil?conquista=${newBelt.achievementId}`,
+            link: `https://akad-fbe7e.web.app/aluno/perfil?conquista=${newBelt.achievementId}`,
           },
         }),
       });
@@ -143,22 +143,22 @@ export function ChangeBeltModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-6">
+        <div className="py-4 sm:py-6">
           {/* Carousel */}
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex items-center justify-center gap-2 sm:gap-4">
             <Button
               variant="ghost"
               size="icon"
               onClick={handlePrev}
               disabled={isUpdating}
-              className="h-12 w-12 rounded-full"
+              className="h-10 w-10 sm:h-12 sm:w-12 rounded-full shrink-0"
             >
-              <ChevronLeft className="h-6 w-6" />
+              <ChevronLeft className="h-5 w-5 sm:h-6 sm:w-6" />
             </Button>
 
-            <div className="flex flex-col items-center gap-4 min-w-[200px]">
+            <div className="flex flex-col items-center gap-3 sm:gap-4 min-w-0">
               <div
-                className="relative p-6 rounded-2xl transition-all duration-300"
+                className="relative p-4 sm:p-6 rounded-2xl transition-all duration-300"
                 style={{
                   background: `linear-gradient(135deg, ${currentBelt.color}20 0%, ${currentBelt.color}10 100%)`,
                   boxShadow: `0 0 40px ${currentBelt.color}30`,
@@ -167,17 +167,17 @@ export function ChangeBeltModal({
                 <img
                   src={currentBelt.image}
                   alt={currentBelt.label}
-                  className="h-32 w-32 object-contain transition-transform duration-300"
+                  className="h-24 w-24 sm:h-32 sm:w-32 object-contain transition-transform duration-300"
                 />
               </div>
               <div className="text-center">
                 <h3
-                  className="text-xl font-bold"
+                  className="text-lg sm:text-xl font-bold"
                   style={{ color: currentBelt.color === "#e5e5e5" ? "#666" : currentBelt.color }}
                 >
                   {currentBelt.label}
                 </h3>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {currentIndex + 1} de {BELT_OPTIONS.length}
                 </p>
               </div>
@@ -188,20 +188,20 @@ export function ChangeBeltModal({
               size="icon"
               onClick={handleNext}
               disabled={isUpdating}
-              className="h-12 w-12 rounded-full"
+              className="h-10 w-10 sm:h-12 sm:w-12 rounded-full shrink-0"
             >
-              <ChevronRight className="h-6 w-6" />
+              <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
             </Button>
           </div>
 
           {/* Belt indicators */}
-          <div className="flex justify-center gap-2 mt-6">
+          <div className="flex justify-center gap-1.5 sm:gap-2 mt-4 sm:mt-6 flex-wrap">
             {BELT_OPTIONS.map((belt, index) => (
               <button
                 key={belt.value}
                 onClick={() => setCurrentIndex(index)}
                 disabled={isUpdating}
-                className={`h-3 w-3 rounded-full transition-all duration-200 ${
+                className={`h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full transition-all duration-200 ${
                   index === currentIndex ? "scale-125" : "opacity-50 hover:opacity-75"
                 }`}
                 style={{ backgroundColor: belt.color }}

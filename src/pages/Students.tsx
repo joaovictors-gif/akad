@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from "react";
-import { Menu, Search, Plus, Eye, Trash2, Loader2, Users } from "lucide-react";
+import { Search, Plus, Eye, Trash2, Loader2, Users } from "lucide-react";
+import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { useToast } from "@/hooks/use-toast";
 import { useStudentsRealtime, StudentData } from "@/hooks/useStudentsRealtime";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -194,17 +195,11 @@ export default function Students() {
       <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 h-screen overflow-y-auto">
-        {/* HEADER MOBILE */}
-        <header className="lg:hidden sticky top-0 z-30 border-b p-4 flex justify-between items-center">
-          <button onClick={() => setSidebarOpen(true)} className="p-2.5 rounded-xl hover:bg-muted/80">
-            <Menu className="h-5 w-5" />
-          </button>
-
-          <h1 className="font-bold">Alunos</h1>
-
-          {/* botão removido */}
-          <div className="w-6" />
-        </header>
+        <AdminPageHeader
+          title="Alunos"
+          subtitle="Gerencie seus alunos"
+          onMenuClick={() => setSidebarOpen(true)}
+        />
 
         <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* FILTROS */}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Menu, Plus, Trash2, Loader2, Clock, Calendar, X, CalendarPlus, Pencil } from "lucide-react";
+import { Plus, Trash2, Loader2, Clock, Calendar, X, CalendarPlus, Pencil, RotateCcw, ChevronLeft, ChevronRight } from "lucide-react";
+import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,6 +116,8 @@ export default function Horarios() {
   const [modalFlexivelOpen, setModalFlexivelOpen] = useState(false);
   const [modalCancelarOpen, setModalCancelarOpen] = useState(false);
   const [modalTipoAulaOpen, setModalTipoAulaOpen] = useState(false);
+  const [modalDayOptionsOpen, setModalDayOptionsOpen] = useState(false);
+  const [selectedDayData, setSelectedDayData] = useState<{ dataISO: string; diaSemana: number; status: string } | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [aulaToDelete, setAulaToDelete] = useState<{ id: string; tipo: "fixa" | "flexivel" | "cancelada" } | null>(
     null,
@@ -153,8 +156,8 @@ export default function Horarios() {
 
   // Mes atual para visualização
   const hoje = new Date();
-  const mesAtual = hoje.getMonth();
-  const anoAtual = hoje.getFullYear();
+  const [mesAtual, setMesAtual] = useState(hoje.getMonth());
+  const [anoAtual, setAnoAtual] = useState(hoje.getFullYear());
 
   // Data mínima para agendamento (hoje)
   const getDataMinima = () => {
@@ -695,6 +698,40 @@ export default function Horarios() {
     return "sem-aula";
   };
 
+  const handleDayClick = (dataISO: string, diaSemana: number) => {
+    if (!dataISO || !selectedCity) return;
+    const status = getStatusDia(diaSemana, dataISO);
+    
+    if (status === "sem-aula") {
+      setFormFlexivel((prev) => ({ ...prev, data: dataISO }));
+      setModalFlexivelOpen(true);
+    } else if (status === "cancelado") {
+      setSelectedDayData({ dataISO, diaSemana, status });
+      setModalDayOptionsOpen(true);
+    } else {
+      // Show options modal (cancel or edit)
+      setSelectedDayData({ dataISO, diaSemana, status });
+      setModalDayOptionsOpen(true);
+    }
+  };
+
+  const handleDayOptionCancel = () => {
+    if (!selectedDayData) return;
+    setFormCancelar((prev) => ({ ...prev, data: selectedDayData.dataISO }));
+    setModalDayOptionsOpen(false);
+    setModalCancelarOpen(true);
+  };
+
+  const handleDayOptionEdit = () => {
+    if (!selectedDayData) return;
+    // Find the relevant fixed class for this day of week
+    const aulaFixa = aulasFixas.find((a) => a.diaSemana === selectedDayData.diaSemana);
+    if (aulaFixa) {
+      handleEditClick(aulaFixa);
+    }
+    setModalDayOptionsOpen(false);
+  };
+
   const diasDoMes = getDiasDoMes();
   const diasSemanaLabels = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -703,20 +740,11 @@ export default function Horarios() {
       <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 h-screen overflow-y-auto">
-        {/* Header */}
-        <header className="sticky top-0 z-30 glass border-b border-border/30">
-          <div className="px-4 md:px-6 lg:px-8 py-4">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="p-2 rounded-xl hover:bg-muted/80 transition-all duration-200 lg:hidden"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
-              <h1 className="text-xl lg:text-2xl font-bold">Horários de Karatê</h1>
-            </div>
-          </div>
-        </header>
+        <AdminPageHeader
+          title="Horários de Karatê"
+          subtitle="Gerencie aulas e calendário"
+          onMenuClick={() => setSidebarOpen(true)}
+        />
 
         <div className="p-4 md:p-6 lg:p-8">
           {isLoading ? (
@@ -748,16 +776,44 @@ export default function Horarios() {
                 {/* Calendar Card */}
                 <Card className="card-elevated rounded-2xl">
                   <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <Calendar className="h-5 w-5 text-primary" />
-                      {getNomeMes(mesAtual)} {anoAtual}
-                    </CardTitle>
+                    <div className="flex items-center justify-between">
+                      <button
+                        onClick={() => {
+                          if (mesAtual === 0) {
+                            setMesAtual(11);
+                            setAnoAtual((prev) => prev - 1);
+                          } else {
+                            setMesAtual((prev) => prev - 1);
+                          }
+                        }}
+                        className="p-1.5 rounded-lg hover:bg-muted/80 transition-colors"
+                      >
+                        <ChevronLeft className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <Calendar className="h-5 w-5 text-primary" />
+                        {getNomeMes(mesAtual)} {anoAtual}
+                      </CardTitle>
+                      <button
+                        onClick={() => {
+                          if (mesAtual === 11) {
+                            setMesAtual(0);
+                            setAnoAtual((prev) => prev + 1);
+                          } else {
+                            setMesAtual((prev) => prev + 1);
+                          }
+                        }}
+                        className="p-1.5 rounded-lg hover:bg-muted/80 transition-colors"
+                      >
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    </div>
                   </CardHeader>
-                  <CardContent className="p-4">
+                  <CardContent className="p-4 pt-0">
                     {/* Days of week header */}
                     <div className="grid grid-cols-7 gap-1 mb-2">
                       {diasSemanaLabels.map((dia) => (
-                        <div key={dia} className="text-center text-xs font-medium text-muted-foreground py-1">
+                        <div key={dia} className="text-center text-[10px] font-semibold text-muted-foreground uppercase tracking-wider py-1.5">
                           {dia}
                         </div>
                       ))}
@@ -767,56 +823,76 @@ export default function Horarios() {
                     <div className="grid grid-cols-7 gap-1">
                       {diasDoMes.map((item, index) => {
                         const status = item.dia ? getStatusDia(item.diaSemana, item.dataISO) : "sem-aula";
-                        const ehHoje = item.dia === hoje.getDate();
+                        const ehHoje = item.dia === hoje.getDate() && mesAtual === hoje.getMonth() && anoAtual === hoje.getFullYear();
 
                         return (
-                          <div
+                          <button
                             key={index}
+                            onClick={() => item.dia ? handleDayClick(item.dataISO, item.diaSemana) : undefined}
+                            disabled={!item.dia}
                             className={`
-                              relative h-9 w-full flex items-center justify-center rounded-lg text-sm transition-all
-                              ${ehHoje ? "ring-2 ring-offset-2 ring-offset-background shadow-lg" : ""}
-                              ${ehHoje && status === "fixa" ? "ring-primary bg-primary text-primary-foreground" : ""}
-                              ${ehHoje && status === "flexivel" ? "ring-amber-500 bg-amber-500 text-white" : ""}
+                              relative h-10 w-full flex flex-col items-center justify-center rounded-lg text-sm transition-all
+                              ${item.dia ? "cursor-pointer hover:scale-105" : "cursor-default"}
+                              ${ehHoje ? "ring-2 ring-offset-1 ring-offset-background shadow-md" : ""}
+                              ${ehHoje && status === "fixa" ? "ring-primary bg-primary text-primary-foreground font-bold" : ""}
+                              ${ehHoje && status === "flexivel" ? "ring-amber-500 bg-amber-500 text-white font-bold" : ""}
                               ${ehHoje && status === "cancelado" ? "ring-destructive bg-destructive/30" : ""}
-                              ${ehHoje && status === "sem-aula" ? "ring-primary bg-primary/10" : ""}
+                              ${ehHoje && status === "sem-aula" ? "ring-primary bg-primary/10 font-bold" : ""}
                               ${!ehHoje && status === "fixa" ? "bg-primary/15 hover:bg-primary/25 border border-primary/30" : ""}
                               ${!ehHoje && status === "flexivel" ? "bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30" : ""}
-                              ${!ehHoje && status === "cancelado" ? "bg-destructive/15 hover:bg-destructive/25 border border-destructive/30" : ""}
-                              ${status === "sem-aula" && item.dia && !ehHoje ? "hover:bg-muted/50" : ""}
+                              ${!ehHoje && status === "cancelado" ? "bg-destructive/15 hover:bg-destructive/25 border border-destructive/40" : ""}
+                              ${status === "sem-aula" && item.dia && !ehHoje ? "hover:bg-muted/60 border border-transparent hover:border-border/50" : ""}
                             `}
                           >
                             {item.dia && (
-                              <span
-                                className={`
-                                  ${ehHoje && (status === "fixa" || status === "flexivel") ? "font-bold text-white" : ""}
-                                  ${ehHoje && status === "sem-aula" ? "font-bold text-primary" : ""}
-                                  ${!ehHoje && status === "fixa" ? "text-primary font-medium" : ""}
-                                  ${!ehHoje && status === "flexivel" ? "text-amber-600 dark:text-amber-400 font-medium" : ""}
-                                  ${status === "cancelado" ? "text-destructive line-through" : ""}
-                                  ${status === "sem-aula" && !ehHoje ? "text-foreground" : ""}
-                                `}
-                              >
-                                {item.dia}
-                              </span>
+                              <>
+                                <span
+                                  className={`
+                                    text-xs leading-none
+                                    ${ehHoje && (status === "fixa" || status === "flexivel") ? "text-white" : ""}
+                                    ${ehHoje && status === "sem-aula" ? "text-primary" : ""}
+                                    ${!ehHoje && status === "fixa" ? "text-primary font-semibold" : ""}
+                                    ${!ehHoje && status === "flexivel" ? "text-amber-600 dark:text-amber-400 font-semibold" : ""}
+                                    ${status === "cancelado" ? "text-destructive line-through" : ""}
+                                    ${status === "sem-aula" && !ehHoje ? "text-muted-foreground" : ""}
+                                  `}
+                                >
+                                  {item.dia}
+                                </span>
+                                {/* Status dot */}
+                                {status !== "sem-aula" && (
+                                  <span className={`
+                                    w-1 h-1 rounded-full mt-0.5
+                                    ${status === "fixa" && !ehHoje ? "bg-primary" : ""}
+                                    ${status === "flexivel" && !ehHoje ? "bg-amber-500" : ""}
+                                    ${status === "cancelado" ? "bg-destructive" : ""}
+                                    ${ehHoje && (status === "fixa" || status === "flexivel") ? "bg-white" : ""}
+                                  `} />
+                                )}
+                              </>
                             )}
-                          </div>
+                          </button>
                         );
                       })}
                     </div>
 
                     {/* Legend */}
-                    <div className="flex flex-wrap items-center justify-center gap-4 mt-4 pt-4 border-t border-border">
+                    <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 mt-4 pt-3 border-t border-border/50">
                       <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded-sm bg-primary/15 border border-primary/40" />
-                        <span className="text-xs text-muted-foreground">Fixa</span>
+                        <div className="w-2.5 h-2.5 rounded-full bg-primary shadow-sm" />
+                        <span className="text-[10px] font-medium text-muted-foreground">Fixa</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded-sm bg-amber-500/15 border border-amber-500/40" />
-                        <span className="text-xs text-muted-foreground">Especial</span>
+                        <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm" />
+                        <span className="text-[10px] font-medium text-muted-foreground">Flexível</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <div className="w-3 h-3 rounded-sm bg-destructive/15 border border-destructive/40" />
-                        <span className="text-xs text-muted-foreground">Cancelada</span>
+                        <div className="w-2.5 h-2.5 rounded-full bg-destructive shadow-sm" />
+                        <span className="text-[10px] font-medium text-muted-foreground">Cancelada</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-5 h-2.5 rounded-full ring-2 ring-primary ring-offset-1 ring-offset-background" />
+                        <span className="text-[10px] font-medium text-muted-foreground">Hoje</span>
                       </div>
                     </div>
                   </CardContent>
@@ -844,15 +920,6 @@ export default function Horarios() {
                     >
                       <CalendarPlus className="h-5 w-5" />
                       <span className="text-xs">Aula Flexível</span>
-                    </Button>
-                    <Button
-                      onClick={() => setModalCancelarOpen(true)}
-                      disabled={!selectedCity}
-                      variant="outline"
-                      className="h-auto py-3 flex flex-col items-center gap-1.5 rounded-xl text-destructive border-destructive/50 hover:bg-destructive/10 col-span-2"
-                    >
-                      <X className="h-5 w-5" />
-                      <span className="text-xs">Cancelar Aula</span>
                     </Button>
                   </CardContent>
                 </Card>
@@ -1371,6 +1438,83 @@ export default function Horarios() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Modal: Day Options (Cancel or Edit) */}
+      <Dialog open={modalDayOptionsOpen} onOpenChange={setModalDayOptionsOpen}>
+        <DialogContent className="sm:max-w-xs">
+          <DialogHeader>
+            <DialogTitle className="text-center">
+              {selectedDayData ? formatDataBR(selectedDayData.dataISO) : ""}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            {selectedDayData?.status === "cancelado" ? (
+              <>
+                <div className="p-4 bg-destructive/10 border border-destructive/30 rounded-xl text-center">
+                  <X className="h-6 w-6 text-destructive mx-auto mb-2" />
+                  <p className="text-sm font-medium text-destructive">Aula cancelada neste dia</p>
+                </div>
+                <Button
+                  onClick={async () => {
+                    if (!selectedDayData || !selectedCity) return;
+                    const cancelamento = aulasCanceladas.find((c) => c.data === selectedDayData.dataISO);
+                    if (!cancelamento) return;
+                    try {
+                      const path = `horarios/${selectedCity}/aulasCanceladas/${cancelamento.id}`;
+                      await deleteDoc(doc(db, path));
+                      setAulasCanceladas((prev) => prev.filter((a) => a.id !== cancelamento.id));
+                      enviarNotificacaoCidade(selectedCity, "Aula Restabelecida", `Aula do dia ${formatDataBR(cancelamento.data)} foi restabelecida`);
+                      toast.success("Aula restabelecida com sucesso!");
+                    } catch (error) {
+                      console.error("Erro ao restabelecer:", error);
+                      toast.error("Erro ao restabelecer aula");
+                    }
+                    setModalDayOptionsOpen(false);
+                  }}
+                  variant="outline"
+                  className="w-full h-12 rounded-xl gap-2"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Restabelecer Aula
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (!selectedDayData) return;
+                    setFormFlexivel((prev) => ({ ...prev, data: selectedDayData.dataISO }));
+                    setModalDayOptionsOpen(false);
+                    setModalFlexivelOpen(true);
+                  }}
+                  className="w-full h-12 rounded-xl gap-2"
+                >
+                  <CalendarPlus className="h-4 w-4" />
+                  Adicionar Aula Flexível
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  onClick={handleDayOptionEdit}
+                  variant="outline"
+                  className="w-full h-12 rounded-xl gap-2"
+                  disabled={!aulasFixas.some((a) => a.diaSemana === selectedDayData?.diaSemana)}
+                >
+                  <Pencil className="h-4 w-4" />
+                  Editar Horário
+                </Button>
+                <Button
+                  onClick={handleDayOptionCancel}
+                  variant="outline"
+                  className="w-full h-12 rounded-xl gap-2 text-destructive border-destructive/50 hover:bg-destructive/10"
+                >
+                  <X className="h-4 w-4" />
+                  Cancelar Aula
+                </Button>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );

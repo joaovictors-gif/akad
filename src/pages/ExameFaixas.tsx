@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
-import { Menu, Search, Loader2, Pencil, Users, AlertCircle } from "lucide-react";
+import { Search, Loader2, Pencil, Users, AlertCircle } from "lucide-react";
+import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -114,12 +115,7 @@ const ExameFaixas = () => {
         ),
       );
 
-      // Notificação (Push/Messaging)
-      await fetch("https://us-central1-akad-fbe7e.cloudfunctions.net/app/messaging/faixa", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid: studentId, faixa: newBelt }),
-      });
+
 
       toast({
         title: "Sucesso!",
@@ -140,20 +136,11 @@ const ExameFaixas = () => {
       <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <main className="flex-1 overflow-auto">
-        {/* Header */}
-        <header className="sticky top-0 z-10 backdrop-blur-xl bg-background/80 border-b border-border/50">
-          <div className="flex items-center justify-between p-4 lg:p-6">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSidebarOpen(true)}>
-                <Menu className="h-5 w-5" />
-              </Button>
-              <div>
-                <h1 className="text-xl lg:text-2xl font-bold text-foreground">Exame de Faixas</h1>
-                <p className="text-sm text-muted-foreground">Gerencie as graduações</p>
-              </div>
-            </div>
-          </div>
-        </header>
+        <AdminPageHeader
+          title="Exame de Faixas"
+          subtitle="Gerencie as graduações"
+          onMenuClick={() => setSidebarOpen(true)}
+        />
 
         <div className="p-4 lg:p-6 space-y-6">
           {/* Busca */}

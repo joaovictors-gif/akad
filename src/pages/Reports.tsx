@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Menu, Search, FileText, Loader2 } from "lucide-react";
+import { Search, FileText, Loader2 } from "lucide-react";
 import { AppSidebar } from "@/components/AppSidebar";
+import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { Input } from "@/components/ui/input";
 
 interface Report {
@@ -48,51 +49,22 @@ export default function Reports() {
 
       {/* Main Content */}
       <div className="flex-1 h-screen overflow-y-auto">
-        {/* Mobile Header */}
-        <header className="lg:hidden sticky top-0 z-30 glass border-b border-border/30 p-4 flex items-center justify-between">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2.5 rounded-xl hover:bg-muted/80 transition-all duration-200"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-          <h1 className="text-lg font-bold">Relatórios</h1>
-          <div className="w-10" />
-        </header>
+        <AdminPageHeader
+          title="Relatórios"
+          subtitle="Documentos e relatórios"
+          onMenuClick={() => setSidebarOpen(true)}
+        />
 
         <div className="p-4 md:p-6 lg:p-8">
-          {/* Desktop Header */}
-          <div className="hidden lg:flex items-center justify-between mb-8 animate-fade-in-up">
-            <div className="flex items-center gap-4">
-              <h1 className="text-3xl font-bold tracking-wider">
-                RELATÓRIOS <span className="text-primary">AKAD</span>
-              </h1>
-            </div>
-            <div className="relative w-72">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar relatório..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-11 bg-muted/50 border-border/50 rounded-xl h-11 focus:bg-muted transition-all duration-200"
-              />
-            </div>
-          </div>
-
-          {/* Mobile Title and Search */}
-          <div className="lg:hidden mb-6 space-y-4 animate-fade-in-up">
-            <h1 className="text-2xl font-bold tracking-wider">
-              RELATÓRIOS <span className="text-primary">AKAD</span>
-            </h1>
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar relatório..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-11 bg-muted/50 border-border/50 rounded-xl h-11 focus:bg-muted transition-all duration-200"
-              />
-            </div>
+          {/* Search */}
+          <div className="relative max-w-md mb-6">
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar relatório..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-11 bg-muted/50 border-border/50 rounded-xl h-11"
+            />
           </div>
 
           {/* Loading State */}

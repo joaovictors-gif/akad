@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Menu, Search, Plus, LayoutGrid, LayoutList, Trash2, Loader2, Pencil } from "lucide-react";
+import { Search, Plus, LayoutGrid, LayoutList, Trash2, Loader2, Pencil } from "lucide-react";
+import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -228,28 +229,21 @@ const fetchCities = async () => {
 
       {/* Main Content */}
       <div className="flex-1 h-screen overflow-y-auto">
-        {/* Mobile Header */}
-        <header className="lg:hidden sticky top-0 z-30 glass border-b border-border/30 p-4 flex items-center justify-between">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2.5 rounded-xl hover:bg-muted/80 transition-all duration-200"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-          <h1 className="text-lg font-bold">Cidades e Valores</h1>
-          <button
-            onClick={toggleViewMode}
-            className="p-2.5 rounded-xl hover:bg-muted/80 transition-all duration-200"
-          >
-            {viewMode === "table" ? <LayoutGrid className="h-5 w-5" /> : <LayoutList className="h-5 w-5" />}
-          </button>
-        </header>
+        <AdminPageHeader
+          title="Cidades e Valores"
+          subtitle="Gerencie cidades e convênios"
+          onMenuClick={() => setSidebarOpen(true)}
+          rightContent={
+            <button
+              onClick={toggleViewMode}
+              className="p-2.5 rounded-xl border border-border/50 hover:bg-muted/80 transition-all duration-200"
+            >
+              {viewMode === "table" ? <LayoutGrid className="h-5 w-5" /> : <LayoutList className="h-5 w-5" />}
+            </button>
+          }
+        />
 
         <div className="p-4 md:p-6 lg:p-8">
-          {/* Desktop Header */}
-          <div className="hidden lg:flex items-center justify-center mb-8 animate-fade-in-up">
-            <h1 className="text-3xl font-bold">Cidades e Valores</h1>
-          </div>
 
           {/* Search and Actions */}
           <div className="flex flex-col sm:flex-row gap-4 mb-6 animate-fade-in-up stagger-1">

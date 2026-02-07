@@ -119,7 +119,7 @@ export function EditStudentModal({ open, onOpenChange, student, onStudentUpdated
       const updateData = {
         obs: formData.observacoes,
         nome: formData.nome,
-        dataNascimento: formData.dataNascimento,
+        idade: formData.dataNascimento,
         religiao: formData.religiao,
         email: formData.email,
         telefone: phoneDigits,

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Menu, Calendar, Users, Clock, CheckCircle2, Loader2, ChevronRight } from "lucide-react";
+import { Calendar, Users, Clock, CheckCircle2, Loader2, ChevronRight } from "lucide-react";
+import { AdminPageHeader } from "@/components/AdminPageHeader";
 import { Label } from "@/components/ui/label";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AttendanceModal } from "@/components/horarios/AttendanceModal";
@@ -247,20 +248,11 @@ export default function Frequencia() {
       <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 h-screen overflow-y-auto">
-        {/* Header */}
-        <header className="sticky top-0 z-30 glass border-b border-border/30">
-          <div className="px-4 md:px-6 lg:px-8 py-4">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="p-2 rounded-xl hover:bg-muted/80 transition-all duration-200 lg:hidden"
-              >
-                <Menu className="h-5 w-5" />
-              </button>
-              <h1 className="text-xl lg:text-2xl font-bold">Frequência</h1>
-            </div>
-          </div>
-        </header>
+        <AdminPageHeader
+          title="Frequência"
+          subtitle="Controle de presença"
+          onMenuClick={() => setSidebarOpen(true)}
+        />
 
         <div className="p-4 md:p-6 lg:p-8">
           {isLoading ? (

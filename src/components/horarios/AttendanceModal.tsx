@@ -29,7 +29,7 @@ const enviarNotificacaoConquista = async (uid: string, conquista: { id: string; 
           title: `🏆 Nova Conquista: ${conquista.name}`,
           body: conquista.description,
           // Link que abre a celebração da conquista
-          link: `https://akad1.lovable.app/aluno/perfil?conquista=${conquista.id}`,
+          link: `https://akad-fbe7e.web.app/aluno/perfil?conquista=${conquista.id}`,
         },
       }),
     });

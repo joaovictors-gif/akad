@@ -1,12 +1,13 @@
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Loader2, CheckCircle2, XCircle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, collection, getDocs, query } from "firebase/firestore";
+import { StudentLayout } from "@/components/student/StudentLayout";
+import { AttendanceSummary } from "@/components/student/AttendanceSummary";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Professor fixo
 const PROFESSOR = "Adriano Santos";
@@ -51,15 +52,14 @@ interface AulasPorDia {
 }
 
 interface DiasCancelados {
-  [key: string]: boolean; // data ISO -> true se cancelado
+  [key: string]: boolean;
 }
 
 interface PresencasPorDia {
-  [key: string]: "presente" | "falta" | null; // data ISO -> status
+  [key: string]: "presente" | "falta" | null;
 }
 
 const StudentAulas = () => {
-  const navigate = useNavigate();
   const { currentUser } = useAuth();
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -129,7 +129,6 @@ const StudentAulas = () => {
       
       setIsLoading(true);
       try {
-        // Fetch aulas fixas
         const aulasFixasRef = collection(db, `horarios/${cidadeAluno}/aulas`);
         const aulasFixasSnap = await getDocs(aulasFixasRef);
         const aulasFixasData: AulaFixa[] = aulasFixasSnap.docs.map(doc => ({
@@ -138,7 +137,6 @@ const StudentAulas = () => {
         } as AulaFixa));
         setAulasFixas(aulasFixasData);
 
-        // Fetch aulas flexíveis
         const aulasFlexiveisRef = collection(db, `horarios/${cidadeAluno}/aulasFlexiveis`);
         const aulasFlexiveisSnap = await getDocs(aulasFlexiveisRef);
         const aulasFlexiveisData: AulaFlexivel[] = aulasFlexiveisSnap.docs.map(doc => ({
@@ -147,7 +145,6 @@ const StudentAulas = () => {
         } as AulaFlexivel));
         setAulasFlexiveis(aulasFlexiveisData);
 
-        // Fetch aulas canceladas
         const aulasCanceladasRef = collection(db, `horarios/${cidadeAluno}/aulasCanceladas`);
         const aulasCanceladasSnap = await getDocs(aulasCanceladasRef);
         const aulasCanceladasData: AulaCancelada[] = aulasCanceladasSnap.docs.map(doc => ({
@@ -156,14 +153,12 @@ const StudentAulas = () => {
         } as AulaCancelada));
         setAulasCanceladas(aulasCanceladasData);
 
-        // Criar mapa de dias cancelados
         const canceladosMap: DiasCancelados = {};
         aulasCanceladasData.forEach(c => {
           canceladosMap[c.data] = true;
         });
         setDiasCancelados(canceladosMap);
 
-        // Fetch attendance records
         const presencasRef = collection(db, `presencas/${cidadeAluno}/registros`);
         const presencasSnap = await getDocs(presencasRef);
         const presencasMap: PresencasPorDia = {};
@@ -197,14 +192,10 @@ const StudentAulas = () => {
       const diaSemana = data.getDay();
       const dataISO = `${anoAtual}-${String(mesAtual + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
       
-      // Pular dias cancelados - eles simplesmente não aparecem no calendário
-      if (diasCancelados[dataISO]) {
-        continue;
-      }
+      if (diasCancelados[dataISO]) continue;
       
       const aulasNoDia: AulaFormatada[] = [];
       
-      // Adicionar aulas fixas
       aulasFixas
         .filter(aula => aula.diaSemana === diaSemana)
         .forEach(aula => {
@@ -216,7 +207,6 @@ const StudentAulas = () => {
           });
         });
       
-      // Adicionar aulas flexíveis
       aulasFlexiveis
         .filter(aula => aula.data === dataISO)
         .forEach(aula => {
@@ -236,6 +226,27 @@ const StudentAulas = () => {
 
     setAulasPorDia(novasAulasPorDia);
   }, [aulasFixas, aulasFlexiveis, diasCancelados, mesAtual, anoAtual]);
+
+  // Calculate attendance summary for this month
+  const attendanceSummary = (() => {
+    let presentes = 0;
+    let totalAulas = 0;
+    
+    const ultimoDia = new Date(anoAtual, mesAtual + 1, 0).getDate();
+    
+    for (let dia = 1; dia <= ultimoDia; dia++) {
+      const dataISO = `${anoAtual}-${String(mesAtual + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+      const status = presencasPorDia[dataISO];
+      if (status === "presente") {
+        presentes++;
+        totalAulas++;
+      } else if (status === "falta") {
+        totalAulas++;
+      }
+    }
+    
+    return { presentes, totalAulas };
+  })();
 
   const formatHorario = (inicio: string, duracao: number) => {
     const [h, m] = inicio.split(":").map(Number);
@@ -274,9 +285,7 @@ const StudentAulas = () => {
   };
 
   const handleDayClick = (dia: number, dataISO: string) => {
-    if (diasCancelados[dataISO]) {
-      return;
-    }
+    if (diasCancelados[dataISO]) return;
     if (aulasPorDia[dia]) {
       setSelectedDay(dia);
       setIsModalOpen(true);
@@ -287,25 +296,18 @@ const StudentAulas = () => {
   const diasDoMes = getDiasDoMes();
 
   return (
-    <div className="min-h-screen bg-background">
+    <StudentLayout>
       {/* Header */}
       <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/aluno")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex items-center gap-3">
-            <div>
-              <h1 className="text-lg font-bold text-foreground">AKAD - Karatê</h1>
-              <p className="text-xs text-muted-foreground">Minhas Aulas</p>
-            </div>
-          </div>
+        <div className="container mx-auto px-4 py-4">
+          <h1 className="text-lg font-bold text-foreground">AKAD - Karatê</h1>
+          <p className="text-xs text-muted-foreground">Minhas Aulas</p>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-6">
+      <main className="container mx-auto px-4 py-6">
+        <div className="mb-4">
           <h2 className="text-2xl font-bold text-foreground">Calendário de Aulas</h2>
           <p className="text-muted-foreground">
             {cidadeAluno ? `Aulas em ${cidadeAluno} • Prof. ${PROFESSOR}` : "Visualize suas aulas do mês"}
@@ -313,8 +315,9 @@ const StudentAulas = () => {
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="space-y-4">
+            <Skeleton className="h-16 w-full rounded-lg" />
+            <Skeleton className="h-80 w-full rounded-lg" />
           </div>
         ) : !cidadeAluno ? (
           <Card>
@@ -333,89 +336,96 @@ const StudentAulas = () => {
             </CardContent>
           </Card>
         ) : (
-          <Card className="max-w-md mx-auto lg:max-w-lg">
-            <CardHeader className="pb-2 px-3 sm:px-6">
-              <div className="flex items-center justify-center">
-                <CardTitle className="text-xl">
-                  {getNomeMes(mesAtual)} {anoAtual}
-                </CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="px-2 sm:px-6">
-              {/* Days of week header */}
-              <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-2">
-                {diasSemana.map((dia) => (
-                  <div key={dia} className="text-center text-sm font-medium text-muted-foreground py-2">
-                    {dia}
-                  </div>
-                ))}
-              </div>
+          <>
+            {/* Attendance Summary */}
+            <AttendanceSummary 
+              presentes={attendanceSummary.presentes} 
+              totalAulas={attendanceSummary.totalAulas} 
+            />
 
-              {/* Calendar grid */}
-              <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
-                {diasDoMes.map((item, index) => {
-                  const temAula = item.dia && aulasPorDia[item.dia];
-                  const ehHoje = item.dia === hoje.getDate();
-                  const temAulaFlexivel = item.dia && aulasPorDia[item.dia]?.some(a => a.isFlexivel);
-                  const presencaStatus = item.dataISO ? presencasPorDia[item.dataISO] : null;
-                  const isPassado = item.dia && new Date(anoAtual, mesAtual, item.dia) < new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-
-                  return (
-                    <div
-                      key={index}
-                      className={`
-                        relative aspect-square flex flex-col items-center justify-center rounded-lg transition-colors
-                        ${item.dia ? "cursor-pointer hover:bg-accent/50" : ""}
-                        ${ehHoje ? "ring-2 ring-primary" : ""}
-                        ${presencaStatus === "presente" ? "bg-green-500/20" : ""}
-                        ${presencaStatus === "falta" ? "bg-red-500/20" : ""}
-                        ${temAulaFlexivel && !presencaStatus ? "bg-accent/30" : ""}
-                        ${temAula && !temAulaFlexivel && !presencaStatus ? "bg-primary/10" : ""}
-                      `}
-                      onClick={() => item.dia && handleDayClick(item.dia, item.dataISO)}
-                    >
-                      {item.dia && (
-                        <>
-                          <span className={`text-sm ${ehHoje ? "font-bold text-primary" : "text-foreground"}`}>
-                            {item.dia}
-                          </span>
-                        {presencaStatus === "presente" && (
-                            <CheckCircle2 className="absolute bottom-0.5 h-3 w-3 text-green-600" />
-                          )}
-                          {presencaStatus === "falta" && (
-                            <XCircle className="absolute bottom-0.5 h-3 w-3 text-red-500" />
-                          )}
-                          {temAula && !presencaStatus && (
-                            <div className={`absolute bottom-1 w-2 h-2 rounded-full ${temAulaFlexivel ? "bg-accent-foreground" : "bg-primary"}`} />
-                          )}
-                        </>
-                      )}
+            <Card className="max-w-md mx-auto lg:max-w-lg">
+              <CardHeader className="pb-2 px-3 sm:px-6">
+                <div className="flex items-center justify-center">
+                  <CardTitle className="text-xl">
+                    {getNomeMes(mesAtual)} {anoAtual}
+                  </CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="px-2 sm:px-6">
+                {/* Days of week header */}
+                <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-2">
+                  {diasSemana.map((dia) => (
+                    <div key={dia} className="text-center text-sm font-medium text-muted-foreground py-2">
+                      {dia}
                     </div>
-                  );
-                })}
-              </div>
+                  ))}
+                </div>
 
-              {/* Legend */}
-              <div className="flex flex-wrap items-center gap-4 mt-6 pt-4 border-t border-border">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-primary" />
-                  <span className="text-sm text-muted-foreground">Aula regular</span>
+                {/* Calendar grid */}
+                <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
+                  {diasDoMes.map((item, index) => {
+                    const temAula = item.dia && aulasPorDia[item.dia];
+                    const ehHoje = item.dia === hoje.getDate();
+                    const temAulaFlexivel = item.dia && aulasPorDia[item.dia]?.some(a => a.isFlexivel);
+                    const presencaStatus = item.dataISO ? presencasPorDia[item.dataISO] : null;
+
+                    return (
+                      <div
+                        key={index}
+                        className={`
+                          relative aspect-square flex flex-col items-center justify-center rounded-lg transition-colors
+                          ${item.dia ? "cursor-pointer hover:bg-accent/50" : ""}
+                          ${ehHoje ? "ring-2 ring-primary" : ""}
+                          ${presencaStatus === "presente" ? "bg-green-500/20" : ""}
+                          ${presencaStatus === "falta" ? "bg-red-500/20" : ""}
+                          ${temAulaFlexivel && !presencaStatus ? "bg-accent/30" : ""}
+                          ${temAula && !temAulaFlexivel && !presencaStatus ? "bg-primary/10" : ""}
+                        `}
+                        onClick={() => item.dia && handleDayClick(item.dia, item.dataISO)}
+                      >
+                        {item.dia && (
+                          <>
+                            <span className={`text-sm ${ehHoje ? "font-bold text-primary" : "text-foreground"}`}>
+                              {item.dia}
+                            </span>
+                            {presencaStatus === "presente" && (
+                              <CheckCircle2 className="absolute bottom-0.5 h-3 w-3 text-green-600" />
+                            )}
+                            {presencaStatus === "falta" && (
+                              <XCircle className="absolute bottom-0.5 h-3 w-3 text-red-500" />
+                            )}
+                            {temAula && !presencaStatus && (
+                              <div className={`absolute bottom-1 w-2 h-2 rounded-full ${temAulaFlexivel ? "bg-accent-foreground" : "bg-primary"}`} />
+                            )}
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-accent-foreground" />
-                  <span className="text-sm text-muted-foreground">Aula especial</span>
+
+                {/* Legend */}
+                <div className="flex flex-wrap items-center gap-4 mt-6 pt-4 border-t border-border">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-primary" />
+                    <span className="text-sm text-muted-foreground">Aula regular</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-accent-foreground" />
+                    <span className="text-sm text-muted-foreground">Aula especial</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-3 h-3 text-green-600" />
+                    <span className="text-sm text-muted-foreground">Presente</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <XCircle className="w-3 h-3 text-red-500" />
+                    <span className="text-sm text-muted-foreground">Falta</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-3 h-3 text-green-600" />
-                  <span className="text-sm text-muted-foreground">Presente</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <XCircle className="w-3 h-3 text-red-500" />
-                  <span className="text-sm text-muted-foreground">Falta</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </>
         )}
       </main>
 
@@ -453,7 +463,7 @@ const StudentAulas = () => {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </StudentLayout>
   );
 };
 

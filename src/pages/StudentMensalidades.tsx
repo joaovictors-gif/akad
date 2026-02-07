@@ -2,8 +2,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, CreditCard, QrCode, Copy, Check, Loader2, ExternalLink, RefreshCw, CheckCircle2, Info } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { CreditCard, QrCode, Copy, Check, Loader2, RefreshCw, CheckCircle2, Info } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { db } from "@/lib/firebase";
@@ -17,6 +17,9 @@ import {
   checkPaymentStatus,
   type PixPaymentResponse,
 } from "@/services/paymentApi";
+import { StudentLayout } from "@/components/student/StudentLayout";
+import { MensalidadeStatusCard } from "@/components/student/MensalidadeStatusCard";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Mensalidade {
   id: string;
@@ -36,7 +39,7 @@ interface ConvenioInfo {
 
 const StudentMensalidades = () => {
   const { currentUser } = useAuth();
-  const navigate = useNavigate();
+  
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedMensalidade, setSelectedMensalidade] = useState<Mensalidade | null>(null);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -361,34 +364,37 @@ const StudentMensalidades = () => {
     }
   };
 
+  // Calculate counts for status card
+  const mensalidadeCounts = (() => {
+    const pendentes = mensalidades.filter(m => m.status === "pendente").length;
+    const atrasadas = mensalidades.filter(m => m.status === "atrasado").length;
+    const pagas = mensalidades.filter(m => m.status === "pago").length;
+    return { pendentes, atrasadas, pagas, total: mensalidades.length };
+  })();
+
   return (
-    <div className="min-h-screen bg-background">
+    <StudentLayout>
       {/* Header */}
       <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/aluno")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div className="flex items-center gap-3">
-            <div>
-              <h1 className="text-lg font-bold text-foreground">AKAD</h1>
-              <p className="text-xs text-muted-foreground">Mensalidades</p>
-            </div>
-          </div>
+        <div className="container mx-auto px-4 py-4">
+          <h1 className="text-lg font-bold text-foreground">AKAD</h1>
+          <p className="text-xs text-muted-foreground">Mensalidades</p>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-6">
+      <main className="container mx-auto px-4 py-6">
+        <div className="mb-4">
           <h2 className="text-2xl font-bold text-foreground">Minhas Mensalidades</h2>
           <p className="text-muted-foreground">Acompanhe e pague suas mensalidades</p>
         </div>
 
         {/* Loading enquanto verifica convênio */}
         {!convenioChecked ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="space-y-4">
+            <Skeleton className="h-20 w-full rounded-lg" />
+            <Skeleton className="h-16 w-full rounded-lg" />
+            <Skeleton className="h-16 w-full rounded-lg" />
           </div>
         ) : (
           <>
@@ -420,12 +426,20 @@ const StudentMensalidades = () => {
               </Card>
             )}
 
-            {/* Lista de Mensalidades - só mostra se não for convênio */}
+            {/* Status Card + Lista de Mensalidades - só mostra se não for convênio */}
             {!convenioInfo.isConvenio && (
               <>
+                <MensalidadeStatusCard
+                  pendentes={mensalidadeCounts.pendentes}
+                  atrasadas={mensalidadeCounts.atrasadas}
+                  pagas={mensalidadeCounts.pagas}
+                  total={mensalidadeCounts.total}
+                  isConvenio={convenioInfo.isConvenio}
+                />
                 {loading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <div className="space-y-3">
+                    <Skeleton className="h-20 w-full rounded-lg" />
+                    <Skeleton className="h-20 w-full rounded-lg" />
                   </div>
                 ) : mensalidades.length === 0 ? (
                   <Card>
@@ -600,7 +614,7 @@ const StudentMensalidades = () => {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </StudentLayout>
   );
 };
 

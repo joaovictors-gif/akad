@@ -1,21 +1,22 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Menu,
   Search,
   Check,
   X,
   Clock,
   QrCode,
   Send,
-  MessageCircle,
-  Mail,
   CalendarDays,
   Loader2,
   Copy,
   RefreshCw,
   ExternalLink,
+  Filter,
+  ChevronDown,
+  MapPin,
 } from "lucide-react";
+import { AdminPageHeader } from "@/components/AdminPageHeader";
 
 // Firebase
 import { db } from "@/lib/firebase";
@@ -28,6 +29,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   createPixPayment,
   checkPaymentStatus,
@@ -75,6 +86,7 @@ export default function Mensalidades() {
   const mesAtualNome = mesesDoAno[dataAtual.getMonth()];
   const anoAtualCurto = dataAtual.getFullYear().toString().slice(-2);
 
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [cityFilter, setCityFilter] = useState("Todas");
@@ -89,6 +101,8 @@ export default function Mensalidades() {
   const [mensalidades, setMensalidades] = useState<Mensalidade[]>([]);
   const [loading, setLoading] = useState(true);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [isSendingPush, setIsSendingPush] = useState(false);
   const [cities, setCities] = useState<string[]>(["Todas"]);
 
   // Estados do PIX
@@ -309,6 +323,47 @@ export default function Mensalidades() {
     }
   };
 
+  // Enviar cobrança via push notification
+  const handleEnviarCobrancaPush = async () => {
+    if (!selectedMensalidade) return;
+
+    setIsSendingPush(true);
+    try {
+      const [mesNum, ano] = selectedMensalidade.mesReferencia.split("-");
+      const mesesNomes: Record<string, string> = {
+        "01": "Janeiro", "02": "Fevereiro", "03": "Março", "04": "Abril",
+        "05": "Maio", "06": "Junho", "07": "Julho", "08": "Agosto",
+        "09": "Setembro", "10": "Outubro", "11": "Novembro", "12": "Dezembro",
+      };
+      const mesNome = mesesNomes[mesNum] || mesNum;
+      const mesFormatado = `${mesNome}/20${ano}`;
+
+      const response = await fetch(`${API_BASE}/messaging/aviso`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: selectedMensalidade.alunoId,
+          mensagem: {
+            title: "💰 Mensalidade Pendente",
+            body: `Sua mensalidade de ${mesFormatado} (${formatCurrency(selectedMensalidade.valor)}) está ${selectedMensalidade.status === "atrasado" ? "atrasada" : "pendente"}. Toque para pagar.`,
+            link: `https://akad-fbe7e.web.app/aluno/mensalidades?pay=true&mes=${mesFormatado}`,
+          },
+        }),
+      });
+
+      if (response.ok) {
+        toast.success("Cobrança enviada via notificação! 🔔");
+      } else {
+        toast.error("Erro ao enviar notificação");
+      }
+    } catch (error) {
+      console.error("Erro ao enviar cobrança push:", error);
+      toast.error("Erro ao enviar cobrança");
+    } finally {
+      setIsSendingPush(false);
+    }
+  };
+
   const filteredMensalidades = mensalidades.filter((m) => {
     const matchesSearch = m.aluno.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCity = cityFilter === "Todas" || m.cidade === cityFilter;
@@ -345,144 +400,181 @@ export default function Mensalidades() {
       <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 h-screen overflow-y-auto">
-        <header className="lg:hidden sticky top-0 z-30 glass border-b p-4 flex items-center justify-between">
-          <button onClick={() => setSidebarOpen(true)} className="p-2.5 rounded-xl hover:bg-muted/80">
-            <Menu className="h-5 w-5" />
-          </button>
-          <h1 className="text-lg font-bold">Mensalidades</h1>
-          <div className="w-10" />
-        </header>
+        <AdminPageHeader
+          title="Mensalidades"
+          subtitle="Gerencie os pagamentos"
+          onMenuClick={() => setSidebarOpen(true)}
+        />
 
-        <div className="p-4 md:p-6 lg:p-8">
-          <div className="hidden lg:flex items-center justify-center mb-8 relative">
-            <h1 className="text-3xl font-bold">Mensalidades</h1>
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+
+          {/* Stats Cards */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="card-elevated rounded-xl p-2.5 sm:p-4">
+              <div className="flex items-center gap-1.5 text-muted-foreground text-xs sm:text-sm mb-0.5 sm:mb-1">
+                <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4 hidden sm:block" />
+                <span className="truncate">Pagos</span>
+              </div>
+              <p className="text-lg sm:text-2xl font-bold text-green-500">
+                {filteredMensalidades.filter((m) => m.status === "pago").length}
+              </p>
+            </div>
+            <div className="card-elevated rounded-xl p-2.5 sm:p-4">
+              <div className="flex items-center gap-1.5 text-muted-foreground text-xs sm:text-sm mb-0.5 sm:mb-1">
+                <Clock className="h-3.5 w-3.5 sm:h-4 sm:w-4 hidden sm:block" />
+                <span className="truncate">Pendentes</span>
+              </div>
+              <p className="text-lg sm:text-2xl font-bold text-yellow-500">
+                {filteredMensalidades.filter((m) => m.status === "pendente").length}
+              </p>
+            </div>
+            <div className="card-elevated rounded-xl p-2.5 sm:p-4">
+              <div className="flex items-center gap-1.5 text-muted-foreground text-xs sm:text-sm mb-0.5 sm:mb-1">
+                <X className="h-3.5 w-3.5 sm:h-4 sm:w-4 hidden sm:block" />
+                <span className="truncate">Atrasados</span>
+              </div>
+              <p className="text-lg sm:text-2xl font-bold text-red-500">
+                {filteredMensalidades.filter((m) => m.status === "atrasado").length}
+              </p>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-4 mb-6">
-            <div className="flex flex-col lg:flex-row gap-4">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar aluno..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-11 bg-muted/50 rounded-xl h-11 border-none focus-visible:ring-1 focus-visible:ring-primary"
-                />
-              </div>
+          {/* Filters - collapsible on mobile */}
+          <div>
+            <button
+              onClick={() => setFiltersOpen(!filtersOpen)}
+              className="sm:hidden flex items-center gap-2 text-sm text-muted-foreground w-full px-3 py-2.5 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
+            >
+              <Filter className="h-4 w-4" />
+              <span>Filtros</span>
+              <ChevronDown className={`h-4 w-4 ml-auto transition-transform ${filtersOpen ? "rotate-180" : ""}`} />
+            </button>
 
-              <div className="flex gap-2 flex-wrap">
-                <Select value={mesFilter} onValueChange={setMesFilter}>
-                  <SelectTrigger className="w-36 h-11 rounded-xl bg-muted/50 border-none">
-                    <CalendarDays className="h-4 w-4 mr-2 text-primary" />
+            <div className={`${filtersOpen ? "flex" : "hidden"} sm:flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 items-start sm:items-center mt-2 sm:mt-0`}>
+              <Select value={mesFilter} onValueChange={setMesFilter}>
+                <SelectTrigger className="w-full sm:w-36 h-10 rounded-xl bg-muted/50 border-border/50">
+                  <div className="flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4 text-muted-foreground" />
                     <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mesesDoAno.map((m) => (
-                      <SelectItem key={m} value={m}>
-                        {m}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {mesesDoAno.map((m) => (
+                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-                <Select value={anoFilter} onValueChange={setAnoFilter}>
-                  <SelectTrigger className="w-24 h-11 rounded-xl bg-muted/50 border-none">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {anosDisponiveis.map((a) => (
-                      <SelectItem key={a} value={a}>
-                        20{a}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <Select value={anoFilter} onValueChange={setAnoFilter}>
+                <SelectTrigger className="w-full sm:w-24 h-10 rounded-xl bg-muted/50 border-border/50">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {anosDisponiveis.map((a) => (
+                    <SelectItem key={a} value={a}>20{a}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-                <Select value={cityFilter} onValueChange={setCityFilter}>
-                  <SelectTrigger className="w-36 h-11 rounded-xl bg-muted/50 border-none">
+              <Select value={cityFilter} onValueChange={setCityFilter}>
+                <SelectTrigger className="w-full sm:w-[180px] h-10 rounded-xl bg-muted/50 border-border/50">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
                     <SelectValue placeholder="Cidade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cities.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {cities.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Search */}
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar aluno..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-muted/50 border-border/50 rounded-xl h-11"
+            />
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center py-10">
+              <Loader2 className="animate-spin h-6 w-6 text-muted-foreground" />
+            </div>
+          ) : filteredMensalidades.length === 0 ? (
+            <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-xl border-border/50 py-12">
+              <h3 className="text-lg font-medium">Nenhum registro encontrado</h3>
+              <p className="text-muted-foreground text-sm">Tente alterar os filtros de busca.</p>
+            </div>
+          ) : (
+            <>
+              {/* Mobile Cards */}
+              <div className="flex flex-col gap-3 md:hidden">
+                {filteredMensalidades.map((m) => (
+                  <div
+                    key={`${m.alunoId}-${m.id}`}
+                    className="card-elevated rounded-xl p-4 flex items-center gap-3 cursor-pointer active:scale-[0.98] transition-transform"
+                    onClick={() => {
+                      setSelectedMensalidade(m);
+                      setShowEnviarOptions(false);
+                      setModalOpen(true);
+                    }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{m.aluno}</p>
+                      <p className="text-xs text-muted-foreground truncate">{m.cidade}</p>
+                    </div>
+
+                    <span className="shrink-0 text-sm font-semibold text-foreground">
+                      {formatCurrency(m.valor)}
+                    </span>
+
+                    {getStatusBadge(m.status)}
+                  </div>
+                ))}
               </div>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <div className="card-elevated rounded-2xl p-4 border-l-4 border-l-green-500 bg-card shadow-sm">
-              <p className="text-sm text-muted-foreground">Pagos</p>
-              <p className="text-2xl font-bold text-green-500">
-                {mensalidades.filter((m) => m.status === "pago").length}
-              </p>
-            </div>
-            <div className="card-elevated rounded-2xl p-4 border-l-4 border-l-yellow-500 bg-card shadow-sm">
-              <p className="text-sm text-muted-foreground">Pendentes</p>
-              <p className="text-2xl font-bold text-yellow-500">
-                {mensalidades.filter((m) => m.status === "pendente").length}
-              </p>
-            </div>
-            <div className="card-elevated rounded-2xl p-4 border-l-4 border-l-red-500 bg-card shadow-sm">
-              <p className="text-sm text-muted-foreground">Atrasados</p>
-              <p className="text-2xl font-bold text-red-500">
-                {mensalidades.filter((m) => m.status === "atrasado").length}
-              </p>
-            </div>
-          </div>
-
-          <div className="card-elevated rounded-2xl overflow-hidden bg-card border border-border/40">
-            <Table>
-              <TableHeader>
-                <TableRow className="table-header-gradient hover:bg-primary border-none">
-                  <TableHead className="text-primary-foreground font-bold py-4">ALUNO</TableHead>
-                  <TableHead className="text-primary-foreground font-bold hidden sm:table-cell">CIDADE</TableHead>
-                  <TableHead className="text-primary-foreground font-bold text-center">REF</TableHead>
-                  <TableHead className="text-primary-foreground font-bold text-center">VALOR</TableHead>
-                  <TableHead className="text-primary-foreground font-bold text-center">STATUS</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-12">
-                      <div className="flex items-center justify-center gap-2">
-                        <Loader2 className="h-5 w-5 animate-spin" /> Carregando registros...
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : filteredMensalidades.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
-                      Nenhum registro encontrado.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredMensalidades.map((m) => (
-                    <TableRow
-                      key={`${m.alunoId}-${m.id}`}
-                      className="cursor-pointer hover:bg-muted/30 transition-colors"
-                      onClick={() => {
-                        setSelectedMensalidade(m);
-                        setShowEnviarOptions(false);
-                        setModalOpen(true);
-                      }}
-                    >
-                      <TableCell className="font-medium">{m.aluno}</TableCell>
-                      <TableCell className="hidden sm:table-cell">{m.cidade}</TableCell>
-                      <TableCell className="text-center font-mono">{m.mesReferencia}</TableCell>
-                      <TableCell className="text-center">{formatCurrency(m.valor)}</TableCell>
-                      <TableCell className="text-center">{getStatusBadge(m.status)}</TableCell>
+              {/* Desktop Table */}
+              <div className="hidden md:block card-elevated rounded-2xl overflow-hidden bg-card border border-border/40">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="table-header-gradient hover:bg-primary border-none">
+                      <TableHead className="text-primary-foreground font-bold py-4">ALUNO</TableHead>
+                      <TableHead className="text-primary-foreground font-bold">CIDADE</TableHead>
+                      <TableHead className="text-primary-foreground font-bold text-center">REF</TableHead>
+                      <TableHead className="text-primary-foreground font-bold text-center">VALOR</TableHead>
+                      <TableHead className="text-primary-foreground font-bold text-center">STATUS</TableHead>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredMensalidades.map((m) => (
+                      <TableRow
+                        key={`${m.alunoId}-${m.id}`}
+                        className="cursor-pointer hover:bg-muted/30 transition-colors"
+                        onClick={() => {
+                          setSelectedMensalidade(m);
+                          setShowEnviarOptions(false);
+                          setModalOpen(true);
+                        }}
+                      >
+                        <TableCell className="font-medium">{m.aluno}</TableCell>
+                        <TableCell>{m.cidade}</TableCell>
+                        <TableCell className="text-center font-mono">{m.mesReferencia}</TableCell>
+                        <TableCell className="text-center">{formatCurrency(m.valor)}</TableCell>
+                        <TableCell className="text-center">{getStatusBadge(m.status)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -524,21 +616,12 @@ export default function Mensalidades() {
               {selectedMensalidade.status !== "pago" ? (
                 <div className="space-y-3">
                   <Button
-                    onClick={handleConfirmarPagamento}
+                    onClick={() => setConfirmDialogOpen(true)}
                     disabled={isConfirming}
                     className="w-full bg-green-600 hover:bg-green-700 rounded-xl h-12 text-white font-bold transition-all active:scale-95"
                   >
-                    {isConfirming ? (
-                      <>
-                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                        Processando...
-                      </>
-                    ) : (
-                      <>
-                        <Check className="h-5 w-5 mr-2" />
-                        Informar Pagamento
-                      </>
-                    )}
+                    <Check className="h-5 w-5 mr-2" />
+                    Informar Pagamento
                   </Button>
 
                   <Button
@@ -568,14 +651,20 @@ export default function Mensalidades() {
                     </Button>
 
                     {showEnviarOptions && (
-                      <div className="grid grid-cols-2 gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                        <button className="flex flex-col items-center justify-center p-3 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 rounded-xl transition-all group">
-                          <MessageCircle className="h-6 w-6 text-green-500 mb-1" />
-                          <span className="text-[10px] font-bold text-green-600 uppercase">WhatsApp</span>
-                        </button>
-                        <button className="flex flex-col items-center justify-center p-3 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 rounded-xl transition-all group">
-                          <Mail className="h-6 w-6 text-blue-500 mb-1" />
-                          <span className="text-[10px] font-bold text-blue-600 uppercase">E-mail</span>
+                      <div className="grid grid-cols-1 gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <button
+                          onClick={handleEnviarCobrancaPush}
+                          disabled={isSendingPush}
+                          className="flex items-center justify-center gap-2 p-3 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-xl transition-all disabled:opacity-50"
+                        >
+                          {isSendingPush ? (
+                            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                          ) : (
+                            <Send className="h-5 w-5 text-primary" />
+                          )}
+                          <span className="text-sm font-bold text-primary">
+                            {isSendingPush ? "Enviando..." : "Enviar via Push"}
+                          </span>
                         </button>
                       </div>
                     )}
@@ -660,6 +749,43 @@ export default function Mensalidades() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Confirmação de pagamento */}
+      <AlertDialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <AlertDialogContent className="rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar pagamento</AlertDialogTitle>
+            <AlertDialogDescription>
+              Deseja confirmar o pagamento de{" "}
+              <span className="font-semibold text-foreground">
+                {selectedMensalidade ? formatCurrency(selectedMensalidade.valor) : ""}
+              </span>{" "}
+              do aluno{" "}
+              <span className="font-semibold text-foreground">
+                {selectedMensalidade?.aluno}
+              </span>
+              ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isConfirming}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmarPagamento}
+              disabled={isConfirming}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {isConfirming ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Processando...
+                </span>
+              ) : (
+                "Confirmar"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
