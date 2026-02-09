@@ -95,12 +95,6 @@ const StudentProfile = () => {
   if (loading) {
     return (
       <StudentLayout>
-        <header className="border-b border-border bg-card">
-          <div className="container mx-auto px-4 py-4">
-            <Skeleton className="h-6 w-32" />
-            <Skeleton className="h-4 w-20 mt-1" />
-          </div>
-        </header>
         <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 max-w-4xl mx-auto">
             <Skeleton className="h-64 w-full rounded-lg" />
@@ -113,12 +107,6 @@ const StudentProfile = () => {
 
   return (
     <StudentLayout>
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <h1 className="text-lg font-bold text-foreground">Meu Perfil</h1>
-          <p className="text-xs text-muted-foreground">Área do Aluno</p>
-        </div>
-      </header>
 
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 max-w-4xl mx-auto">

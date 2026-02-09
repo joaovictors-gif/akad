@@ -374,13 +374,6 @@ const StudentMensalidades = () => {
 
   return (
     <StudentLayout>
-      {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <h1 className="text-lg font-bold text-foreground">AKAD</h1>
-          <p className="text-xs text-muted-foreground">Mensalidades</p>
-        </div>
-      </header>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">

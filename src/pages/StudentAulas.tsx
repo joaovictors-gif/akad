@@ -297,13 +297,6 @@ const StudentAulas = () => {
 
   return (
     <StudentLayout>
-      {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <h1 className="text-lg font-bold text-foreground">AKAD - Karatê</h1>
-          <p className="text-xs text-muted-foreground">Minhas Aulas</p>
-        </div>
-      </header>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
