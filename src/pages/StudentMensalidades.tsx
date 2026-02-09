@@ -409,7 +409,7 @@ const StudentMensalidades = () => {
                           <Info className="h-4 w-4 text-primary" />
                           <span className="text-foreground font-medium">
                             Mensalidades pagas até{" "}
-                            {format(new Date(convenioInfo.convenioFim), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                            {format(new Date(convenioInfo.convenioFim), "MMMM 'de' yyyy", { locale: ptBR })}
                           </span>
                         </div>
                       )}

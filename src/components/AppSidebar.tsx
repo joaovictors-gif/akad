@@ -11,6 +11,7 @@ import {
   LogOut,
   X,
   ClipboardCheck,
+  ShoppingBag,
 } from "lucide-react";
 
 const menuItems = [
@@ -22,6 +23,7 @@ const menuItems = [
   { title: "Frequência", url: "/frequencia", icon: ClipboardCheck },
   { title: "Mensalidades", url: "/mensalidades", icon: CreditCard },
   { title: "Relatórios", url: "/relatorios", icon: FileText },
+  { title: "Loja", url: "/loja", icon: ShoppingBag },
 ];
 
 interface AppSidebarProps {

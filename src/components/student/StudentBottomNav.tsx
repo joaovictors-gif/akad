@@ -27,25 +27,19 @@ export function StudentBottomNav() {
                 whileTap={{ scale: 0.9 }}
                 className={cn(
                   "relative flex flex-col items-center justify-center gap-1 rounded-xl px-4 py-2 transition-colors min-w-[4.5rem]",
-                  isActive
-                    ? "bg-primary/15"
-                    : "text-muted-foreground"
+                  isActive ? "bg-primary/15" : "text-muted-foreground"
                 )}
               >
                 <item.icon
                   className={cn(
                     "h-5 w-5 transition-colors",
-                    isActive
-                      ? "text-primary stroke-[2.5]"
-                      : "text-muted-foreground"
+                    isActive ? "text-primary stroke-[2.5]" : "text-muted-foreground"
                   )}
                 />
                 <span
                   className={cn(
                     "text-[10px] transition-colors",
-                    isActive
-                      ? "text-primary font-bold"
-                      : "text-muted-foreground font-medium"
+                    isActive ? "text-primary font-bold" : "text-muted-foreground font-medium"
                   )}
                 >
                   {item.label}

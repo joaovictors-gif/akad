@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { LogOut } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
@@ -53,7 +54,7 @@ interface StudentData {
 }
 
 const StudentProfile = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, logout } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [studentData, setStudentData] = useState<StudentData | null>(null);
@@ -184,6 +185,18 @@ const StudentProfile = () => {
               setSearchParams({});
             }}
           />
+
+          {/* Botão Sair */}
+          <div className="lg:col-span-2 flex justify-center pt-2 pb-4">
+            <Button
+              variant="outline"
+              className="w-full max-w-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+              onClick={logout}
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Sair da conta
+            </Button>
+          </div>
         </div>
       </main>
     </StudentLayout>

@@ -23,6 +23,7 @@ import Mensalidades from "./pages/Mensalidades";
 import ExameFaixas from "./pages/ExameFaixas";
 import Horarios from "./pages/Horarios";
 import Frequencia from "./pages/Frequencia";
+import Loja from "./pages/Loja";
 import ContaBloqueada from "./pages/ContaBloqueada";
 import NotFound from "./pages/NotFound";
 
@@ -263,6 +264,14 @@ const AppRoutes = () => (
       element={
         <AdminRoute>
           <Frequencia />
+        </AdminRoute>
+      } 
+    />
+    <Route 
+      path="/loja" 
+      element={
+        <AdminRoute>
+          <Loja />
         </AdminRoute>
       } 
     />

@@ -13,6 +13,7 @@ import { StudentLayout } from "@/components/student/StudentLayout";
 import { BeltCard } from "@/components/student/BeltCard";
 import { FinancialBadge } from "@/components/student/FinancialBadge";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { ProductCarousel } from "@/components/student/ProductCarousel";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -156,10 +157,14 @@ const StudentDashboard = () => {
   return (
     <StudentLayout>
       <OnboardingModal isAdmin={false} />
-      
+
+      {/* Header with theme toggle */}
+      <div className="flex items-center justify-end px-4 pt-4">
+        <ThemeToggle />
+      </div>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 py-4">
         {/* Greeting */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -250,6 +255,16 @@ const StudentDashboard = () => {
             />
           </div>
         )}
+
+        {/* Produtos da Loja */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mb-4"
+        >
+          <ProductCarousel />
+        </motion.div>
       </main>
     </StudentLayout>
   );
