@@ -157,30 +157,6 @@ const StudentDashboard = () => {
     <StudentLayout>
       <OnboardingModal isAdmin={false} />
       
-      {/* Header */}
-      <motion.header 
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.3 }}
-        className="border-b border-border bg-card sticky top-0 z-50 pt-[env(safe-area-inset-top)]"
-      >
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold text-foreground">AKAD</h1>
-            <p className="text-xs text-muted-foreground">Área do Aluno</p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <motion.div whileTap={{ scale: 0.95 }}>
-              <Button variant="outline" size="sm" onClick={handleLogout}>
-                <LogOut className="h-4 w-4 mr-2" />
-                Sair
-              </Button>
-            </motion.div>
-          </div>
-        </div>
-      </motion.header>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
