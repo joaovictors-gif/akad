@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag, ImageOff, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { ShoppingBag, ImageOff, Loader2, ChevronLeft, ChevronRight, Flame } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
@@ -82,29 +82,34 @@ export function ProductCarousel() {
         <div className="flex gap-3">
           {products.map((product) => (
             <div key={product.id} className="flex-[0_0_70%] min-w-0 sm:flex-[0_0_45%]">
-              <Card className="overflow-hidden border-border/50">
-                <div className="aspect-square bg-muted/30 relative">
+              <Card className="overflow-hidden border-border/50 bg-gradient-to-b from-card to-card/80 shadow-md">
+                <div className="aspect-[4/3] bg-muted/20 relative overflow-hidden">
                   {product.imageUrl ? (
                     <img
                       src={product.imageUrl}
                       alt={product.nome}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <ImageOff className="h-8 w-8 text-muted-foreground/30" />
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted/30 to-muted/10">
+                      <ImageOff className="h-8 w-8 text-muted-foreground/20" />
                     </div>
                   )}
+                  {/* Badge Popular */}
+                  <div className="absolute top-2 left-2 flex items-center gap-1 bg-primary text-primary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg">
+                    <Flame className="h-3 w-3" />
+                    Popular
+                  </div>
                 </div>
-                <CardContent className="p-3 space-y-2">
-                  <h4 className="font-semibold text-foreground text-sm truncate">{product.nome}</h4>
+                <CardContent className="p-3 space-y-1.5">
+                  <h4 className="font-bold text-foreground text-sm truncate">{product.nome}</h4>
                   {product.descricao && (
-                    <p className="text-xs text-muted-foreground line-clamp-1">{product.descricao}</p>
+                    <p className="text-[11px] text-muted-foreground line-clamp-1">{product.descricao}</p>
                   )}
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-primary font-bold text-sm">{formatCurrency(product.valor)}</span>
-                    <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => handleBuy(product)}>
-                      <ShoppingBag className="h-3.5 w-3.5" />
+                  <div className="flex items-center justify-between pt-1.5 border-t border-border/30">
+                    <span className="text-primary font-extrabold text-base">{formatCurrency(product.valor)}</span>
+                    <Button size="sm" className="h-7 gap-1 text-[11px] rounded-full px-3" onClick={() => handleBuy(product)}>
+                      <ShoppingBag className="h-3 w-3" />
                       Comprar
                     </Button>
                   </div>
