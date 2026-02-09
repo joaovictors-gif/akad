@@ -15,43 +15,46 @@ export function StudentBottomNav() {
   const navigate = useNavigate();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-card/95 backdrop-blur-lg pb-[env(safe-area-inset-bottom)]">
-      <div className="flex items-center justify-around h-16 max-w-lg mx-auto px-2">
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          return (
-            <button
-              key={item.path}
-              onClick={() => navigate(item.path)}
-              className={cn(
-                "relative flex flex-col items-center justify-center gap-0.5 w-full h-full transition-colors",
-                isActive ? "text-primary" : "text-muted-foreground"
-              )}
-            >
-              {isActive && (
-                <motion.div
-                  layoutId="bottomNavIndicator"
-                  className="absolute -top-px left-1/2 -translate-x-1/2 w-8 h-0.5 bg-primary rounded-full"
-                  transition={{ type: "spring", stiffness: 500, damping: 35 }}
-                />
-              )}
-              <motion.div
-                whileTap={{ scale: 0.85 }}
-                animate={isActive ? { scale: 1.1 } : { scale: 1 }}
-                transition={{ type: "spring", stiffness: 400, damping: 20 }}
+    <div className="fixed bottom-0 left-0 right-0 z-50 px-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))]">
+      <nav className="mx-auto max-w-md rounded-2xl bg-card/95 backdrop-blur-xl border border-border/50 shadow-lg shadow-black/20">
+        <div className="flex items-center justify-around h-[4.25rem] px-1">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path;
+            return (
+              <motion.button
+                key={item.path}
+                onClick={() => navigate(item.path)}
+                whileTap={{ scale: 0.9 }}
+                className={cn(
+                  "relative flex flex-col items-center justify-center gap-1 rounded-xl px-4 py-2 transition-colors min-w-[4.5rem]",
+                  isActive
+                    ? "bg-primary/15"
+                    : "text-muted-foreground"
+                )}
               >
-                <item.icon className={cn("h-5 w-5", isActive && "stroke-[2.5]")} />
-              </motion.div>
-              <span className={cn(
-                "text-[10px] font-medium",
-                isActive && "font-semibold"
-              )}>
-                {item.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </nav>
+                <item.icon
+                  className={cn(
+                    "h-5 w-5 transition-colors",
+                    isActive
+                      ? "text-primary stroke-[2.5]"
+                      : "text-muted-foreground"
+                  )}
+                />
+                <span
+                  className={cn(
+                    "text-[10px] transition-colors",
+                    isActive
+                      ? "text-primary font-bold"
+                      : "text-muted-foreground font-medium"
+                  )}
+                >
+                  {item.label}
+                </span>
+              </motion.button>
+            );
+          })}
+        </div>
+      </nav>
+    </div>
   );
 }
