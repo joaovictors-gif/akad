@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Mail, Lock, AlertTriangle, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, AlertTriangle, Eye, EyeOff, Download } from "lucide-react";
+import { usePWAInstall } from "@/hooks/usePWAInstall";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -39,6 +40,7 @@ const LoginCard = () => {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isAppleLoading, setIsAppleLoading] = useState(false);
   const { login, loginWithGoogle, loginWithApple, isConfigured } = useAuth();
+  const { canInstall, install } = usePWAInstall();
   const navigate = useNavigate();
 
   // Detectar se é iOS e se está rodando como PWA
@@ -291,6 +293,17 @@ return (
           </>
         )}
       </div>
+
+      {/* PWA Install Button */}
+      {canInstall && (
+        <button
+          onClick={install}
+          className="w-full mt-4 py-3 bg-muted/50 border border-border/50 rounded-xl flex items-center justify-center gap-2 hover:bg-muted/70 transition-colors text-sm font-medium text-foreground"
+        >
+          <Download className="w-4 h-4 text-primary" />
+          Instalar App
+        </button>
+      )}
 
       <p className="text-center text-muted-foreground/60 text-[10px] md:text-xs mt-4 md:mt-8">
         © 2026 AKAD. Todos os direitos reservados.

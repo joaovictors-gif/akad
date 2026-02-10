@@ -193,10 +193,33 @@ const LoginRoute = ({ children }: { children: ReactNode }) => {
   return <>{children}</>;
 };
 
+// Root route: PWA → login, browser → landing page
+const RootRoute = () => {
+  const isPWA =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (window.navigator as any).standalone === true;
+  const { currentUser, loading } = useAuth();
+
+  if (loading) return <LoadingSpinner />;
+
+  if (currentUser) {
+    if (isAdminEmail(currentUser.email)) {
+      return <Navigate to="/dashboard" replace />;
+    }
+    return <Navigate to="/aluno" replace />;
+  }
+
+  if (isPWA) {
+    return <Index />;
+  }
+
+  return <LandingPage />;
+};
+
 const AppRoutes = () => (
   <Routes>
-    {/* Landing page - public */}
-    <Route path="/" element={<LandingPage />} />
+    {/* Root route - PWA goes to login, browser goes to landing */}
+    <Route path="/" element={<RootRoute />} />
     {/* Login route */}
     <Route 
       path="/app/login" 
