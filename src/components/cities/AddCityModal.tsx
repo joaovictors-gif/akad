@@ -8,6 +8,8 @@ import { format, addMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Calendar, Info } from "lucide-react";
 
+const DURATION_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1);
+
 export interface CityFormData {
   nome: string;
   convenio: boolean;
@@ -16,6 +18,7 @@ export interface CityFormData {
   valorAtraso: number;
   convenioInicio?: string;
   convenioFim?: string;
+  convenioDuracaoMeses?: number;
 }
 
 interface AddCityModalProps {
@@ -37,19 +40,20 @@ export function AddCityModal({ open, onOpenChange, onAddCity }: AddCityModalProp
     valorAtraso: 0,
     convenioInicio: "",
     convenioFim: "",
+    convenioDuracaoMeses: 12,
   });
 
-  // Calculate end date automatically when start date changes (12 months)
+  // Calculate end date automatically when start date or duration changes
   useEffect(() => {
-    if (formData.convenio && formData.convenioInicio) {
+    if (formData.convenio && formData.convenioInicio && formData.convenioDuracaoMeses) {
       const startDate = new Date(formData.convenioInicio);
-      const endDate = addMonths(startDate, 12);
+      const endDate = addMonths(startDate, formData.convenioDuracaoMeses);
       setFormData((prev) => ({
         ...prev,
         convenioFim: format(endDate, "yyyy-MM-dd"),
       }));
     }
-  }, [formData.convenioInicio, formData.convenio]);
+  }, [formData.convenioInicio, formData.convenio, formData.convenioDuracaoMeses]);
 
   // =====================
   // BUSCAR CIDADES (IBGE)
@@ -88,6 +92,7 @@ export function AddCityModal({ open, onOpenChange, onAddCity }: AddCityModalProp
       valorAtraso: 0,
       convenioInicio: "",
       convenioFim: "",
+      convenioDuracaoMeses: 12,
     });
 
     onOpenChange(false);
@@ -151,6 +156,7 @@ export function AddCityModal({ open, onOpenChange, onAddCity }: AddCityModalProp
                 convenio: value === "convenio",
                 convenioInicio: value === "convenio" ? format(new Date(), "yyyy-MM-dd") : "",
                 convenioFim: "",
+                convenioDuracaoMeses: 12,
               })}
             >
               <SelectTrigger className="bg-muted/50 border-border/50 rounded-xl h-11">
@@ -158,19 +164,39 @@ export function AddCityModal({ open, onOpenChange, onAddCity }: AddCityModalProp
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="normal">Normal (valores próprios)</SelectItem>
-                <SelectItem value="convenio">Convênio (12 meses - mensalidades pagas)</SelectItem>
+                <SelectItem value="convenio">Convênio (mensalidades pagas)</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           {/* CAMPOS DE CONVÊNIO */}
           {formData.convenio && (
-            <div className="space-y-4 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/30">
-              <div className="flex items-start gap-2 text-sm text-yellow-400">
+            <div className="space-y-4 p-4 rounded-xl bg-accent/50 border border-border/50">
+              <div className="flex items-start gap-2 text-sm text-muted-foreground">
                 <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
                 <p>
-                  Convênios duram 12 meses. Alunos desta cidade terão mensalidades automaticamente pagas durante este período.
+                  Alunos desta cidade terão mensalidades automaticamente pagas durante o período do convênio.
                 </p>
+              </div>
+
+              {/* DURAÇÃO */}
+              <div className="space-y-2">
+                <Label>Duração do Convênio</Label>
+                <Select
+                  value={String(formData.convenioDuracaoMeses || 12)}
+                  onValueChange={(v) => setFormData({ ...formData, convenioDuracaoMeses: Number(v) })}
+                >
+                  <SelectTrigger className="bg-background/50 border-border/50 rounded-xl h-11">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DURATION_OPTIONS.map((m) => (
+                      <SelectItem key={m} value={String(m)}>
+                        {m} {m === 1 ? "mês" : "meses"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* DATA INÍCIO */}
@@ -192,7 +218,7 @@ export function AddCityModal({ open, onOpenChange, onAddCity }: AddCityModalProp
                 <div className="space-y-2">
                   <Label className="text-muted-foreground">Válido até</Label>
                   <div className="px-4 py-3 bg-background/50 rounded-xl text-sm font-medium">
-                    {formatDateDisplay(formData.convenioFim)} (12 meses)
+                    {formatDateDisplay(formData.convenioFim)} ({formData.convenioDuracaoMeses} {formData.convenioDuracaoMeses === 1 ? "mês" : "meses"})
                   </div>
                 </div>
               )}

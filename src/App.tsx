@@ -10,6 +10,7 @@ import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { PWAUpdateBanner } from "@/components/PWAUpdateBanner";
 import Index from "./pages/Index";
+import LandingPage from "./pages/LandingPage";
 import Dashboard from "./pages/Dashboard";
 import StudentDashboard from "./pages/StudentDashboard";
 import StudentProfile from "./pages/StudentProfile";
@@ -173,7 +174,8 @@ const BlockedRoute = ({ children }: { children: ReactNode }) => {
 };
 
 // Public Route - redirects based on user role
-const PublicRoute = ({ children }: { children: ReactNode }) => {
+// Login Route - redirects logged users to their dashboard
+const LoginRoute = ({ children }: { children: ReactNode }) => {
   const { currentUser, loading } = useAuth();
   
   if (loading) {
@@ -181,7 +183,6 @@ const PublicRoute = ({ children }: { children: ReactNode }) => {
   }
   
   if (currentUser) {
-    // Redirect based on email domain
     if (isAdminEmail(currentUser.email)) {
       return <Navigate to="/dashboard" replace />;
     } else {
@@ -194,12 +195,15 @@ const PublicRoute = ({ children }: { children: ReactNode }) => {
 
 const AppRoutes = () => (
   <Routes>
+    {/* Landing page - public */}
+    <Route path="/" element={<LandingPage />} />
+    {/* Login route */}
     <Route 
-      path="/" 
+      path="/app/login" 
       element={
-        <PublicRoute>
+        <LoginRoute>
           <Index />
-        </PublicRoute>
+        </LoginRoute>
       } 
     />
     {/* Admin routes */}
