@@ -1,10 +1,10 @@
 import { useEffect, useState, useMemo } from "react";
-import { collection, onSnapshot, Timestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+const API_BASE = "https://us-central1-akad-fbe7e.cloudfunctions.net/app";
 
 interface Order {
   id: string;
@@ -13,7 +13,8 @@ interface Order {
   pagamento: string;
   valor: number;
   status: string;
-  dataCriacao: Timestamp;
+  dataAtualizacao: string | null;
+  dataCriacao: string | null;
 }
 
 function getStatusColor(status: string) {
@@ -34,48 +35,44 @@ export function RecentOrdersTable() {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    if (!db) {
-      console.warn("Firebase não inicializado - ordens recentes não serão carregadas");
-      setLoading(false);
-      return;
-    }
+    const fetchOrders = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/recentes`);
+        if (!response.ok) throw new Error("Erro ao buscar ordens recentes");
+        
+        const data = await response.json();
+        
+        const mapped: Order[] = (Array.isArray(data) ? data : []).map((item: any) => ({
+          id: item.id ?? item.uid ?? Math.random().toString(),
+          nome: item.nome ?? "-",
+          mes: item.mes ?? "-",
+          pagamento: item.pagamento ?? "-",
+          valor: Number(item.valor ?? 0),
+          status: item.status ?? "Criado",
+          dataAtualizacao: item.dataAtualizacao?._seconds 
+            ? new Date(item.dataAtualizacao._seconds * 1000).toISOString()
+            : item.dataAtualizacao ?? null,
+          dataCriacao: item.dataCriacao?._seconds
+            ? new Date(item.dataCriacao._seconds * 1000).toISOString()
+            : item.dataCriacao ?? null,
+        }));
 
-    const colRef = collection(db, "recentes");
-
-    const unsubscribe = onSnapshot(
-      colRef,
-      (snapshot) => {
-        const data = snapshot.docs.map((doc) => {
-          const d = doc.data();
-
-          return {
-            id: doc.id,
-            nome: d.nome ?? "-",
-            mes: d.mes ?? "-",
-            pagamento: d.pagamento ?? "-",
-            valor: Number(d.valor ?? 0),
-            status: d.status ?? "Criado",
-            dataCriacao: d.dataCriacao,
-          } as Order;
+        // Sort by dataAtualizacao descending, fallback to dataCriacao
+        mapped.sort((a, b) => {
+          const dateA = a.dataAtualizacao ?? a.dataCriacao ?? "";
+          const dateB = b.dataAtualizacao ?? b.dataCriacao ?? "";
+          return new Date(dateB).getTime() - new Date(dateA).getTime();
         });
 
-        // Sort client-side by dataCriacao descending
-        data.sort((a, b) => {
-          const timeA = a.dataCriacao?.toMillis?.() ?? 0;
-          const timeB = b.dataCriacao?.toMillis?.() ?? 0;
-          return timeB - timeA;
-        });
-
-        setOrders(data);
+        setOrders(mapped);
+      } catch (error) {
+        console.error("Erro ao buscar ordens recentes:", error);
+      } finally {
         setLoading(false);
-      },
-      (error) => {
-        console.error("Erro no listener de ordens:", error);
-        setLoading(false);
-      },
-    );
+      }
+    };
 
-    return () => unsubscribe();
+    fetchOrders();
   }, []);
 
   const filteredOrders = useMemo(() => {
@@ -106,7 +103,7 @@ export function RecentOrdersTable() {
       </div>
 
       {loading ? (
-        <p className="text-center text-muted-foreground text-sm">Carregando ordens em tempo real...</p>
+        <p className="text-center text-muted-foreground text-sm">Carregando ordens recentes...</p>
       ) : filteredOrders.length === 0 ? (
         <p className="text-center text-muted-foreground text-sm py-4">Nenhuma ordem encontrada</p>
       ) : (
@@ -127,13 +124,9 @@ export function RecentOrdersTable() {
                 {filteredOrders.map((order) => (
                   <TableRow key={order.id} className="border-border">
                     <TableCell className="font-medium text-xs md:text-sm">{order.nome}</TableCell>
-
                     <TableCell className="text-muted-foreground text-xs md:text-sm hidden md:table-cell">{order.mes}</TableCell>
-
                     <TableCell className="text-xs md:text-sm hidden md:table-cell">{order.pagamento}</TableCell>
-
                     <TableCell className="text-xs md:text-sm">R$ {order.valor.toFixed(2).replace(".", ",")}</TableCell>
-
                     <TableCell className={`${getStatusColor(order.status)} text-xs md:text-sm`}>
                       {order.status}
                     </TableCell>
