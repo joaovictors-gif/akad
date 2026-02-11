@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { collection, onSnapshot, orderBy, query, Timestamp } from "firebase/firestore";
+import { collection, onSnapshot, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -34,12 +34,16 @@ export function RecentOrdersTable() {
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    if (!db) return;
+    if (!db) {
+      console.warn("Firebase não inicializado - ordens recentes não serão carregadas");
+      setLoading(false);
+      return;
+    }
 
-    const q = query(collection(db, "recentes"), orderBy("dataCriacao", "desc"));
+    const colRef = collection(db, "recentes");
 
     const unsubscribe = onSnapshot(
-      q,
+      colRef,
       (snapshot) => {
         const data = snapshot.docs.map((doc) => {
           const d = doc.data();
@@ -53,6 +57,13 @@ export function RecentOrdersTable() {
             status: d.status ?? "Criado",
             dataCriacao: d.dataCriacao,
           } as Order;
+        });
+
+        // Sort client-side by dataCriacao descending
+        data.sort((a, b) => {
+          const timeA = a.dataCriacao?.toMillis?.() ?? 0;
+          const timeB = b.dataCriacao?.toMillis?.() ?? 0;
+          return timeB - timeA;
         });
 
         setOrders(data);
