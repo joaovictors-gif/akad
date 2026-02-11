@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => ({
       registerType: "prompt",
       includeAssets: ["favicon.ico", "robots.txt"],
       manifest: {
-        name: "AKAD - Academia de Karatê",
+        name: "AKAD - Adriano Karatê-do",
         short_name: "AKAD",
         description: "Sistema de gestão para Academia de Karatê AKAD",
         theme_color: "#e02020",
