@@ -137,7 +137,8 @@ export default function Students() {
         title: "Aluno cadastrado com sucesso!",
         description: formData.convenioAtivo 
           ? "As mensalidades do período do convênio foram marcadas como pagas." 
-          : undefined
+          : undefined,
+        variant: "success",
       });
       setModalOpen(false);
       // Real-time listener will update automatically
@@ -175,7 +176,7 @@ export default function Students() {
       const data = await response.json();
       if (!data.success) throw new Error();
 
-      toast({ title: "Aluno excluído com sucesso!" });
+      toast({ title: "Aluno excluído com sucesso!", variant: "success" });
       setDeleteDialogOpen(false);
       setStudentToDelete(null);
       // Real-time listener will update automatically
@@ -194,14 +195,14 @@ export default function Students() {
     <div className="flex min-h-screen bg-background">
       <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      <div className="flex-1 h-screen overflow-y-auto">
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
         <AdminPageHeader
           title="Alunos"
           subtitle="Gerencie seus alunos"
           onMenuClick={() => setSidebarOpen(true)}
         />
 
-        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 flex flex-col flex-1 min-h-0">
           {/* FILTROS */}
           <StudentFilters students={students} onFilterChange={handleFilterChange} />
 
@@ -224,6 +225,7 @@ export default function Students() {
           </div>
 
           {/* ================= MOBILE: CARDS / DESKTOP: TABELA ================= */}
+          <div className="flex-1 min-h-0 overflow-y-auto">
           {isLoading ? (
             <div className="flex justify-center py-10">
               <Loader2 className="animate-spin h-6 w-6 text-muted-foreground" />
@@ -286,7 +288,7 @@ export default function Students() {
               {/* Desktop Table */}
               <div className="hidden md:block">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="sticky top-0 z-10 bg-background">
                     <TableRow>
                       <TableHead>Nome</TableHead>
                       <TableHead>Responsável</TableHead>
@@ -337,6 +339,7 @@ export default function Students() {
               </div>
             </>
           )}
+          </div>
         </div>
       </div>
 
@@ -345,6 +348,7 @@ export default function Students() {
         onOpenChange={setModalOpen}
         onAddStudent={handleAddStudent}
         isLoading={isSubmitting}
+        existingStudents={students.filter(s => s.email).map(s => ({ email: s.email!, responsavel: s.responsavel, telefone: s.telefone }))}
       />
 
       <StudentDetailsModal 

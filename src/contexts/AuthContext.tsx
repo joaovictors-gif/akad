@@ -13,7 +13,10 @@ import {
   onAuthStateChanged,
   AuthCredential,
 } from "firebase/auth";
-import { auth, googleProvider, isFirebaseConfigured } from "@/lib/firebase";
+import { doc, setDoc } from "firebase/firestore";
+import { getMessaging, getToken, isSupported as isFCMSupported } from "firebase/messaging";
+import { auth, db, googleProvider, isFirebaseConfigured } from "@/lib/firebase";
+import app from "@/lib/firebase";
 
 /* =======================
    Tipos
@@ -46,6 +49,50 @@ interface AuthProviderProps {
 /* =======================
    Provider
 ======================= */
+
+const VAPID_KEY = "BLBavgKV8CL2NYhWTr8e8yybUeVgqD309N9geSmasrsZSPfxerO9pi-CRycJpCIPxWzyt5vRh798yoWJAfz0co4";
+
+const saveAdminFCMToken = async (user: User) => {
+  if (!db || !app) return;
+  try {
+    const supported = (await isFCMSupported()) && "serviceWorker" in navigator && "Notification" in window;
+    if (!supported) return;
+
+    // Only request if already granted, don't prompt during login
+    if (Notification.permission !== "granted") {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") return;
+    }
+
+    const swRegistration = await navigator.serviceWorker.register(
+      "/firebase-messaging-sw.js",
+      { scope: "/firebase-cloud-messaging-push-scope" },
+    );
+    await swRegistration.update();
+    if (!swRegistration.active) {
+      await new Promise<void>((resolve) => {
+        const sw = swRegistration.installing || swRegistration.waiting;
+        if (!sw) return resolve();
+        sw.addEventListener("statechange", () => {
+          if (sw.state === "activated") resolve();
+        });
+      });
+    }
+
+    const messaging = getMessaging(app);
+    const fcmToken = await getToken(messaging, {
+      vapidKey: VAPID_KEY,
+      serviceWorkerRegistration: swRegistration,
+    });
+
+    if (fcmToken) {
+      await setDoc(doc(db, "admin", user.uid), { token: fcmToken }, { merge: true });
+      console.log("✅ Admin FCM token saved");
+    }
+  } catch (error) {
+    console.error("Erro ao salvar token FCM do admin:", error);
+  }
+};
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -201,6 +248,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       setLoading(false);
+
+      // Save FCM token for admin users
+      if (user?.email) {
+        const domain = user.email.toLowerCase().split("@")[1];
+        if (domain?.startsWith("admin")) {
+          saveAdminFCMToken(user);
+        }
+      }
     });
 
     return unsubscribe;

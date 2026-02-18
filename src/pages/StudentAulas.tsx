@@ -3,6 +3,7 @@ import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveStudent } from "@/contexts/ActiveStudentContext";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, collection, getDocs, query } from "firebase/firestore";
 import { StudentLayout } from "@/components/student/StudentLayout";
@@ -61,6 +62,7 @@ interface PresencasPorDia {
 
 const StudentAulas = () => {
   const { currentUser } = useAuth();
+  const { activeStudentId } = useActiveStudent();
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -80,36 +82,15 @@ const StudentAulas = () => {
   // Buscar cidade do aluno
   useEffect(() => {
     const fetchStudentCity = async () => {
-      if (!currentUser?.uid || !db) return;
+      const sid = activeStudentId || currentUser?.uid;
+      if (!sid || !db) return;
       
       try {
-        const alunosRef = collection(db, "alunos");
-        const q = query(alunosRef);
-        const alunosSnap = await getDocs(q);
-        
-        let foundStudentId: string | null = null;
-        
-        for (const alunoDoc of alunosSnap.docs) {
-          const infoRef = doc(db, `alunos/${alunoDoc.id}/infor/infor`);
-          const infoSnap = await getDoc(infoRef);
-          if (infoSnap.exists()) {
-            const data = infoSnap.data();
-            if (data.email?.toLowerCase() === currentUser.email?.toLowerCase()) {
-              foundStudentId = alunoDoc.id;
-              setStudentId(alunoDoc.id);
-              setCidadeAluno(data.cidade || "");
-              break;
-            }
-          }
-        }
-        
-        if (!foundStudentId) {
-          const infoRef = doc(db, `alunos/${currentUser.uid}/infor/infor`);
-          const infoSnap = await getDoc(infoRef);
-          if (infoSnap.exists()) {
-            setStudentId(currentUser.uid);
-            setCidadeAluno(infoSnap.data().cidade || "");
-          }
+        const infoRef = doc(db, `alunos/${sid}/infor/infor`);
+        const infoSnap = await getDoc(infoRef);
+        if (infoSnap.exists()) {
+          setStudentId(sid);
+          setCidadeAluno(infoSnap.data().cidade || "");
         }
       } catch (error) {
         console.error("Erro ao buscar cidade do aluno:", error);
@@ -117,7 +98,7 @@ const StudentAulas = () => {
     };
     
     fetchStudentCity();
-  }, [currentUser]);
+  }, [activeStudentId, currentUser]);
 
   // Buscar aulas da cidade e presenças do aluno
   useEffect(() => {

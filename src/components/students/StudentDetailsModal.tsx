@@ -123,7 +123,7 @@ export function StudentDetailsModal({ open, onOpenChange, student, onStudentUpda
       const data = await response.json();
       if (!data.success) throw new Error();
 
-      toast({ title: "Aluno rematriculado com sucesso!" });
+      toast({ title: "Aluno rematriculado com sucesso!", variant: "success" });
       onOpenChange(false);
       onStudentUpdated?.();
     } catch {

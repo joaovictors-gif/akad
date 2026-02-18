@@ -5,6 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, DollarSign, RefreshCw, AlertTriangle, CheckCircle } from "lucide-react";
 import { format, addMonths, isBefore, differenceInDays } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const DURATION_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1);
 import { ptBR } from "date-fns/locale";
 
 interface City {
@@ -35,6 +38,7 @@ export function EditCityModal({ open, onOpenChange, city, onSave, onRenewConveni
     atraso: 0,
   });
   const [novaDataInicio, setNovaDataInicio] = useState("");
+  const [duracaoMeses, setDuracaoMeses] = useState(12);
 
   // Reset form when city changes
   useEffect(() => {
@@ -45,6 +49,7 @@ export function EditCityModal({ open, onOpenChange, city, onSave, onRenewConveni
         atraso: city.valorAtraso,
       });
       setNovaDataInicio("");
+      setDuracaoMeses(12);
     }
   }, [city]);
 
@@ -67,7 +72,7 @@ export function EditCityModal({ open, onOpenChange, city, onSave, onRenewConveni
     setIsRenewing(true);
     try {
       const startDate = new Date(novaDataInicio);
-      const endDate = addMonths(startDate, 12);
+      const endDate = addMonths(startDate, duracaoMeses);
       await onRenewConvenio(city.nome, novaDataInicio, format(endDate, "yyyy-MM-dd"));
       onOpenChange(false);
     } finally {
@@ -272,6 +277,24 @@ export function EditCityModal({ open, onOpenChange, city, onSave, onRenewConveni
                     <RefreshCw className="h-4 w-4" />
                     Renovar Convênio
                   </Label>
+                  {/* Duração */}
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Duração do Convênio</Label>
+                    <Select value={String(duracaoMeses)} onValueChange={(v) => setDuracaoMeses(Number(v))}>
+                      <SelectTrigger className="bg-background/50 border-border/50 rounded-xl h-11">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DURATION_OPTIONS.map((m) => (
+                          <SelectItem key={m} value={String(m)}>
+                            {m} {m === 1 ? "mês" : "meses"}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Data de início */}
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground">Nova data de início</Label>
                     <Input
@@ -281,11 +304,17 @@ export function EditCityModal({ open, onOpenChange, city, onSave, onRenewConveni
                       className="bg-background/50 border-border/50 rounded-xl h-11"
                     />
                   </div>
+
+                  {/* Data fim calculada */}
                   {novaDataInicio && (
-                    <p className="text-xs text-muted-foreground">
-                      Válido até: {formatDateDisplay(format(addMonths(new Date(novaDataInicio), 12), "yyyy-MM-dd"))}
-                    </p>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Válido até</Label>
+                      <div className="px-4 py-3 bg-background/50 rounded-xl text-sm font-medium">
+                        {formatDateDisplay(format(addMonths(new Date(novaDataInicio), duracaoMeses), "yyyy-MM-dd"))} ({duracaoMeses} {duracaoMeses === 1 ? "mês" : "meses"})
+                      </div>
+                    </div>
                   )}
+
                   <Button
                     type="button"
                     onClick={handleRenew}
@@ -297,7 +326,7 @@ export function EditCityModal({ open, onOpenChange, city, onSave, onRenewConveni
                     ) : (
                       <RefreshCw className="h-4 w-4 mr-2" />
                     )}
-                    Renovar por mais 12 meses
+                    Renovar por {duracaoMeses} {duracaoMeses === 1 ? "mês" : "meses"}
                   </Button>
                 </div>
               )}

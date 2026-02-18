@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveStudent } from "@/contexts/ActiveStudentContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, Loader2 } from "lucide-react";
+import { Clock, Loader2, Users, ArrowLeftRight } from "lucide-react";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useNextClass } from "@/hooks/useNextClass";
 import { doc, getDoc, updateDoc, collection, onSnapshot } from "firebase/firestore";
@@ -14,6 +15,8 @@ import { BeltCard } from "@/components/student/BeltCard";
 import { FinancialBadge } from "@/components/student/FinancialBadge";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ProductCarousel } from "@/components/student/ProductCarousel";
+import { StudentOrders } from "@/components/student/StudentOrders";
+import { AccountSelectorModal } from "@/components/student/AccountSelectorModal";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -34,6 +37,14 @@ interface StudentInfo {
 
 const StudentDashboard = () => {
   const { currentUser, logout } = useAuth();
+  const { 
+    activeStudentId, 
+    isMultiAccount, 
+    isLoadingAccounts, 
+    showSelector, 
+    setShowSelector,
+    activeAccount 
+  } = useActiveStudent();
   const { requestPermission, isSupported } = usePushNotifications();
   const { proximaAula, isLoading: isLoadingAula } = useNextClass();
   const [tokenChecked, setTokenChecked] = useState(false);
@@ -45,13 +56,17 @@ const StudentDashboard = () => {
   const [overdueCount, setOverdueCount] = useState(0);
   const [isLoadingFinancial, setIsLoadingFinancial] = useState(true);
 
+  // Use activeStudentId for data fetching (supports joint accounts)
+  const studentId = activeStudentId || currentUser?.uid;
+
   // Busca informações do aluno do Firestore
   useEffect(() => {
     const fetchStudentInfo = async () => {
-      if (!currentUser?.uid || !db) return;
+      if (!studentId || !db) return;
+      setIsLoadingInfo(true);
       
       try {
-        const docRef = doc(db, "alunos", currentUser.uid, "infor", "infor");
+        const docRef = doc(db, "alunos", studentId, "infor", "infor");
         const docSnap = await getDoc(docRef);
         
         if (docSnap.exists()) {
@@ -70,16 +85,17 @@ const StudentDashboard = () => {
     };
 
     fetchStudentInfo();
-  }, [currentUser?.uid]);
+  }, [studentId]);
 
   // Busca resumo financeiro
   useEffect(() => {
-    if (!currentUser?.uid || !db) {
+    if (!studentId || !db) {
       setIsLoadingFinancial(false);
       return;
     }
 
-    const mensRef = collection(db, `alunos/${currentUser.uid}/mensalidades`);
+    setIsLoadingFinancial(true);
+    const mensRef = collection(db, `alunos/${studentId}/mensalidades`);
     const unsubscribe = onSnapshot(mensRef, (snapshot) => {
       let pending = 0;
       let overdue = 0;
@@ -99,7 +115,7 @@ const StudentDashboard = () => {
     });
 
     return () => unsubscribe();
-  }, [currentUser?.uid]);
+  }, [studentId]);
 
   // Atualiza o token FCM automaticamente
   useEffect(() => {
@@ -154,14 +170,58 @@ const StudentDashboard = () => {
 
   const studentName = studentInfo?.nome;
 
+  if (isLoadingAccounts) {
+    return (
+      <StudentLayout>
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </StudentLayout>
+    );
+  }
+
   return (
     <StudentLayout>
       <OnboardingModal isAdmin={false} />
+      <AccountSelectorModal 
+        open={showSelector} 
+        onOpenChange={setShowSelector}
+        title="Qual conta deseja acessar?"
+      />
 
-      {/* Header with theme toggle */}
-      <div className="flex items-center justify-end px-4 pt-4">
+      {/* Header with theme toggle and switch button */}
+      <div className="flex items-center justify-between px-4 pt-4">
+        {isMultiAccount ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowSelector(true)}
+            className="rounded-xl gap-2 text-xs h-9 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
+          >
+            <ArrowLeftRight className="h-3.5 w-3.5" />
+            Trocar conta
+          </Button>
+        ) : (
+          <div />
+        )}
         <ThemeToggle />
       </div>
+
+      {/* Multi-account banner */}
+      {isMultiAccount && activeAccount && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mx-4 mt-2"
+        >
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20">
+            <Users className="h-4 w-4 text-primary flex-shrink-0" />
+            <p className="text-xs text-muted-foreground">
+              Visualizando: <span className="font-medium text-foreground">{activeAccount.nome}</span>
+            </p>
+          </div>
+        </motion.div>
+      )}
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-4">
@@ -264,6 +324,16 @@ const StudentDashboard = () => {
           className="mb-4"
         >
           <ProductCarousel />
+        </motion.div>
+
+        {/* Pedidos do Aluno */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="mb-4"
+        >
+          <StudentOrders />
         </motion.div>
       </main>
     </StudentLayout>

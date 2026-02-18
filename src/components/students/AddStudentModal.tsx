@@ -35,11 +35,18 @@ interface CidadeData {
   };
 }
 
+interface ExistingStudentInfo {
+  email: string;
+  responsavel: string;
+  telefone: string;
+}
+
 interface AddStudentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onAddStudent: (student: StudentFormData) => void;
   isLoading?: boolean;
+  existingStudents?: ExistingStudentInfo[];
 }
 
 export interface StudentFormData {
@@ -92,11 +99,17 @@ interface StepDef {
   label: string;
 }
 
-export function AddStudentModal({ open, onOpenChange, onAddStudent, isLoading = false }: AddStudentModalProps) {
+export function AddStudentModal({ open, onOpenChange, onAddStudent, isLoading = false, existingStudents = [] }: AddStudentModalProps) {
   const [formData, setFormData] = useState<StudentFormState>({ ...INITIAL_FORM });
   const [currentStep, setCurrentStep] = useState(0);
   const [cidades, setCidades] = useState<CidadeData[]>([]);
   const [loadingCidades, setLoadingCidades] = useState(false);
+
+  // Check if the entered email already exists (joint account)
+  const matchingStudent = existingStudents.find(s => 
+    formData.email.trim() !== "" && s.email.toLowerCase() === formData.email.toLowerCase().trim()
+  );
+  const isJointAccount = !!matchingStudent;
 
   useEffect(() => {
     if (open) {
@@ -130,16 +143,19 @@ export function AddStudentModal({ open, onOpenChange, onAddStudent, isLoading = 
       { id: "faixa", label: "Faixa Inicial" },
     ];
 
-    if (isMaiorIdade === false) {
-      base.push({ id: "responsavel", label: "Responsável" });
-      base.push({ id: "telefone", label: "Telefone do Responsável" });
-    } else {
-      base.push({ id: "telefone", label: "Telefone" });
+    // If joint account, skip responsavel and telefone (inherit from existing student)
+    if (!isJointAccount) {
+      if (isMaiorIdade === false) {
+        base.push({ id: "responsavel", label: "Responsável" });
+        base.push({ id: "telefone", label: "Telefone do Responsável" });
+      } else {
+        base.push({ id: "telefone", label: "Telefone" });
+      }
     }
 
     base.push({ id: "observacoes", label: "Observações" });
     return base;
-  }, [isMaiorIdade]);
+  }, [isMaiorIdade, isJointAccount]);
 
   const totalSteps = steps.length;
   const progress = ((currentStep + 1) / totalSteps) * 100;
@@ -181,8 +197,16 @@ export function AddStudentModal({ open, onOpenChange, onAddStudent, isLoading = 
   const handleBack = () => setCurrentStep((s) => Math.max(s - 1, 0));
 
   const handleSubmit = () => {
-    const phoneDigits = unformatPhone(formData.telefone);
-    if (phoneDigits.length !== 11) return;
+    // For joint accounts, use the existing student's responsavel and telefone
+    const finalTelefone = isJointAccount && matchingStudent ? matchingStudent.telefone : unformatPhone(formData.telefone);
+    const finalResponsavel = isJointAccount && matchingStudent 
+      ? matchingStudent.responsavel 
+      : (isMaiorIdade ? "Próprio" : formData.responsavel);
+
+    if (!isJointAccount) {
+      const phoneDigits = unformatPhone(formData.telefone);
+      if (phoneDigits.length !== 11) return;
+    }
 
     let senha = "";
     if (formData.dataNascimento) {
@@ -192,9 +216,9 @@ export function AddStudentModal({ open, onOpenChange, onAddStudent, isLoading = 
 
     onAddStudent({
       ...formData,
-      telefone: phoneDigits,
+      telefone: finalTelefone,
       maiorIdade: isMaiorIdade ?? true,
-      responsavel: isMaiorIdade ? "Próprio" : formData.responsavel,
+      responsavel: finalResponsavel,
       senha,
       convenioAtivo: hasActiveConvenio || false,
       convenioFim: hasActiveConvenio ? selectedCidade?.convenioFim : undefined,
@@ -347,6 +371,17 @@ export function AddStudentModal({ open, onOpenChange, onAddStudent, isLoading = 
               autoFocus
               className="bg-muted/50 border-border/50 rounded-xl h-12 text-base focus:bg-muted transition-all duration-200"
             />
+            {isJointAccount && (
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30">
+                <AlertCircle className="h-4 w-4 text-yellow-500 mt-0.5 flex-shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium text-yellow-500">Conta conjunta</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Já existe um aluno com este email. O responsável e telefone serão os mesmos da conta existente.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         );
 

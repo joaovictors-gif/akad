@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "next-themes";
 import { useState, useEffect, ReactNode } from "react";
+import { ActiveStudentProvider } from "@/contexts/ActiveStudentContext";
 import { db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
 import { PWAUpdateBanner } from "@/components/PWAUpdateBanner";
@@ -358,15 +359,17 @@ const AppRoutes = () => (
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
       <TooltipProvider>
         <Toaster />
         <Sonner />
         <AuthProvider>
-          <BrowserRouter>
-            <AppRoutes />
-            <PWAUpdateBanner />
-          </BrowserRouter>
+          <ActiveStudentProvider>
+            <BrowserRouter>
+              <AppRoutes />
+              <PWAUpdateBanner />
+            </BrowserRouter>
+          </ActiveStudentProvider>
         </AuthProvider>
       </TooltipProvider>
     </ThemeProvider>

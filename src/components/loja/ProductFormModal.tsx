@@ -109,7 +109,7 @@ export function ProductFormModal({ open, onOpenChange, product, onSuccess }: Pro
           }),
         });
         if (!response.ok) throw new Error("Erro ao editar produto");
-        toast({ title: "Produto atualizado com sucesso!" });
+        toast({ title: "Produto atualizado com sucesso!", variant: "success" });
       } else {
         const response = await fetch("https://app-vaglvpp5la-uc.a.run.app/loja/add/", {
           method: "POST",
@@ -123,7 +123,7 @@ export function ProductFormModal({ open, onOpenChange, product, onSuccess }: Pro
           }),
         });
         if (!response.ok) throw new Error("Erro ao adicionar produto");
-        toast({ title: "Produto adicionado com sucesso!" });
+        toast({ title: "Produto adicionado com sucesso!", variant: "success" });
       }
 
       onSuccess();

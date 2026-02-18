@@ -112,11 +112,7 @@
   }
 
   html {
-    /* Safe area for iPhone notch/Dynamic Island */
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
+    /* Remove safe-area from html - handled by fixed/sticky elements individually */
   }
 
   body {
@@ -445,4 +441,9 @@
   .stagger-3 { animation-delay: 0.15s; }
   .stagger-4 { animation-delay: 0.2s; }
   .stagger-5 { animation-delay: 0.25s; }
+}
+
+@keyframes toast-progress {
+  from { width: 100%; }
+  to { width: 0%; }
 }

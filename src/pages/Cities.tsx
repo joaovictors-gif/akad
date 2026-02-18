@@ -228,54 +228,57 @@ const fetchCities = async () => {
       <AppSidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Main Content */}
-      <div className="flex-1 h-screen overflow-y-auto">
-        <AdminPageHeader
-          title="Cidades e Valores"
-          subtitle="Gerencie cidades e convênios"
-          onMenuClick={() => setSidebarOpen(true)}
-          rightContent={
-            <button
-              onClick={toggleViewMode}
-              className="p-2.5 rounded-xl border border-border/50 hover:bg-muted/80 transition-all duration-200"
-            >
-              {viewMode === "table" ? <LayoutGrid className="h-5 w-5" /> : <LayoutList className="h-5 w-5" />}
-            </button>
-          }
-        />
-
-        <div className="p-4 md:p-6 lg:p-8">
-
-          {/* Search and Actions */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-6 animate-fade-in-up stagger-1">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar cidade ou convênio"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-11 bg-muted/50 border-border/50 rounded-xl h-11 focus:bg-muted transition-all duration-200"
-              />
-            </div>
-            <div className="flex flex-wrap gap-3">
+      <div className="flex-1 h-screen flex flex-col overflow-hidden">
+        <div className="flex-shrink-0">
+          <AdminPageHeader
+            title="Cidades e Valores"
+            subtitle="Gerencie cidades e convênios"
+            onMenuClick={() => setSidebarOpen(true)}
+            rightContent={
               <button
                 onClick={toggleViewMode}
-                className="hidden lg:flex p-2.5 rounded-xl border border-border/50 hover:bg-muted/80 transition-all duration-200"
+                className="p-2.5 rounded-xl border border-border/50 hover:bg-muted/80 transition-all duration-200"
               >
                 {viewMode === "table" ? <LayoutGrid className="h-5 w-5" /> : <LayoutList className="h-5 w-5" />}
               </button>
-              <UpdateDueDatesModal />
-              <Button 
-                onClick={() => setModalOpen(true)} 
-                disabled={isSubmitting}
-                className="bg-primary hover:bg-primary/90 rounded-xl h-11 px-4 sm:px-6 btn-glow shadow-lg shadow-primary/20 transition-all duration-200 hover:shadow-xl hover:shadow-primary/30"
-              >
-                <Plus className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Adicionar nova cidade</span>
-                <span className="sm:hidden">Adicionar</span>
-              </Button>
+            }
+          />
+
+          <div className="p-4 md:p-6 lg:p-8 pb-0">
+            {/* Search and Actions */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-6 animate-fade-in-up stagger-1">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar cidade ou convênio"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-11 bg-muted/50 border-border/50 rounded-xl h-11 focus:bg-muted transition-all duration-200"
+                />
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={toggleViewMode}
+                  className="hidden lg:flex p-2.5 rounded-xl border border-border/50 hover:bg-muted/80 transition-all duration-200"
+                >
+                  {viewMode === "table" ? <LayoutGrid className="h-5 w-5" /> : <LayoutList className="h-5 w-5" />}
+                </button>
+                <UpdateDueDatesModal />
+                <Button 
+                  onClick={() => setModalOpen(true)} 
+                  disabled={isSubmitting}
+                  className="bg-primary hover:bg-primary/90 rounded-xl h-11 px-4 sm:px-6 btn-glow shadow-lg shadow-primary/20 transition-all duration-200 hover:shadow-xl hover:shadow-primary/30"
+                >
+                  <Plus className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Adicionar nova cidade</span>
+                  <span className="sm:hidden">Adicionar</span>
+                </Button>
+              </div>
             </div>
           </div>
+        </div>
 
+        <div className="flex-1 overflow-y-auto px-4 md:px-6 lg:px-8 pb-4 md:pb-6 lg:pb-8">
           {/* Loading State */}
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
@@ -449,6 +452,7 @@ const fetchCities = async () => {
           )}
         </div>
       </div>
+
 
       {/* Add City Modal */}
       <AddCityModal

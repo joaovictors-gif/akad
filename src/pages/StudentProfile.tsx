@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveStudent } from "@/contexts/ActiveStudentContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,8 @@ interface StudentData {
 
 const StudentProfile = () => {
   const { currentUser, logout } = useAuth();
+  const { activeStudentId } = useActiveStudent();
+  const studentId = activeStudentId || currentUser?.uid;
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [studentData, setStudentData] = useState<StudentData | null>(null);
@@ -64,10 +67,10 @@ const StudentProfile = () => {
 
   useEffect(() => {
     const fetchStudentData = async () => {
-      if (!currentUser?.uid) return;
+      if (!studentId) return;
 
       try {
-        const docRef = doc(db, "alunos", currentUser.uid, "infor", "infor");
+        const docRef = doc(db, "alunos", studentId, "infor", "infor");
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
@@ -81,7 +84,7 @@ const StudentProfile = () => {
     };
 
     fetchStudentData();
-  }, [currentUser]);
+  }, [studentId]);
 
   const getStatusVariant = (status: string) => {
     return status === "Matriculado" || status === "Ativo" ? "default" : "destructive";
@@ -116,11 +119,11 @@ const StudentProfile = () => {
             <CardContent className="pt-4 sm:pt-8 pb-4 sm:pb-6 px-3 sm:px-6">
               {/* Avatar with belt border */}
               <div className="flex flex-col items-center mb-4 sm:mb-8">
-                {currentUser?.uid && (
+                {studentId && (
                   <div className="scale-75 sm:scale-100 origin-center">
                     <div className={`rounded-full p-1 border-4 ${beltBorderClass} transition-colors`}>
                       <ProfilePhotoUpload
-                        userId={currentUser.uid}
+                        userId={studentId}
                         currentPhotoUrl={studentData?.fotoUrl}
                         userName={studentData?.nome || ""}
                         onPhotoUpdated={handlePhotoUpdated}

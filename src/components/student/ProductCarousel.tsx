@@ -3,8 +3,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ShoppingBag, ImageOff, Loader2, ChevronLeft, ChevronRight, Flame } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ToastAction } from "@/components/ui/toast";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
+import { doc, setDoc, collection, getDoc, getDocs, query, where } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { useAuth } from "@/contexts/AuthContext";
+import { useActiveStudent } from "@/contexts/ActiveStudentContext";
 
 interface Product {
   id: string;
@@ -18,7 +23,12 @@ interface Product {
 export function ProductCarousel() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [buying, setBuying] = useState<string | null>(null);
   const { toast } = useToast();
+  const { currentUser } = useAuth();
+  const { activeStudentId } = useActiveStudent();
+
+  const studentId = activeStudentId || currentUser?.uid;
 
   const [emblaRef, emblaApi] = useEmblaCarousel(
     { loop: true, align: "start", slidesToScroll: 1 },
@@ -47,11 +57,95 @@ export function ProductCarousel() {
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
-  const handleBuy = (product: Product) => {
-    toast({
-      title: "Em breve!",
-      description: `A compra de "${product.nome}" estará disponível em breve.`,
+  const createOrder = async (product: Product) => {
+    if (!studentId || !db) return;
+
+    // Fetch student name
+    let alunoNome = "";
+    try {
+      const inforSnap = await getDoc(doc(db!, `alunos/${studentId}/infor/infor`));
+      if (inforSnap.exists()) alunoNome = inforSnap.data().nome || "";
+    } catch { /* ignore */ }
+
+    const pedidoRef = doc(collection(db, `pedidos/${studentId}/itens`));
+    await setDoc(pedidoRef, {
+      produtoId: product.id || product.productId,
+      produtoNome: product.nome,
+      produtoValor: product.valor,
+      produtoImageUrl: product.imageUrl || null,
+      alunoUid: studentId,
+      alunoNome,
+      status: "pendente",
+      criadoEm: new Date().toISOString(),
     });
+
+    toast({
+      title: "Pedido realizado! 🎉",
+      description: `"${product.nome}" foi adicionado aos seus pedidos.`,
+      variant: "success",
+    });
+  };
+
+  const handleBuy = async (product: Product) => {
+    if (!studentId || !db) {
+      toast({ title: "Erro", description: "Você precisa estar logado.", variant: "destructive" });
+      return;
+    }
+
+    setBuying(product.id);
+    try {
+      // Check for existing orders of this product
+      const productId = product.id || product.productId;
+      const pedidosRef = collection(db, `pedidos/${studentId}/itens`);
+      const q = query(pedidosRef, where("produtoId", "==", productId));
+      const existingSnap = await getDocs(q);
+
+      const hasExisting = existingSnap.docs.some((d) => {
+        const status = d.data().status;
+        return status === "pendente" || status === "entregue" || status === "confirmado";
+      });
+
+      if (hasExisting) {
+        const existingStatus = existingSnap.docs.find((d) => 
+          ["pendente", "entregue", "confirmado"].includes(d.data().status)
+        )?.data().status;
+
+        const statusLabel = existingStatus === "pendente" ? "pendente" : existingStatus === "confirmado" ? "confirmado" : "já entregue";
+
+        toast({
+          title: "⚠️ Pedido existente",
+          description: `Você já tem um pedido ${statusLabel} de "${product.nome}". Deseja pedir novamente?`,
+          variant: "warning",
+          action: (
+            <ToastAction
+              altText="Confirmar novo pedido"
+              onClick={async () => {
+                setBuying(product.id);
+                try {
+                  await createOrder(product);
+                } catch (error) {
+                  console.error("Erro ao criar pedido:", error);
+                  toast({ title: "Erro ao fazer pedido", variant: "destructive" });
+                } finally {
+                  setBuying(null);
+                }
+              }}
+            >
+              Pedir mesmo assim
+            </ToastAction>
+          ),
+        });
+        setBuying(null);
+        return;
+      }
+
+      await createOrder(product);
+    } catch (error) {
+      console.error("Erro ao criar pedido:", error);
+      toast({ title: "Erro ao fazer pedido", variant: "destructive" });
+    } finally {
+      setBuying(null);
+    }
   };
 
   if (loading) {
@@ -129,8 +223,8 @@ export function ProductCarousel() {
                 )}
                 <div className="flex items-center justify-between pt-1.5 border-t border-border/30">
                   <span className="text-primary font-extrabold text-base">{formatCurrency(products[0].valor)}</span>
-                  <Button size="sm" className="h-7 gap-1 text-[11px] rounded-full px-3" onClick={() => handleBuy(products[0])}>
-                    <ShoppingBag className="h-3 w-3" />
+                  <Button size="sm" className="h-7 gap-1 text-[11px] rounded-full px-3" onClick={() => handleBuy(products[0])} disabled={buying === products[0].id}>
+                    {buying === products[0].id ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShoppingBag className="h-3 w-3" />}
                     Comprar
                   </Button>
                 </div>
@@ -164,8 +258,8 @@ export function ProductCarousel() {
                     )}
                     <div className="flex items-center justify-between pt-1.5 border-t border-border/30">
                       <span className="text-primary font-extrabold text-base">{formatCurrency(product.valor)}</span>
-                      <Button size="sm" className="h-7 gap-1 text-[11px] rounded-full px-3" onClick={() => handleBuy(product)}>
-                        <ShoppingBag className="h-3 w-3" />
+                      <Button size="sm" className="h-7 gap-1 text-[11px] rounded-full px-3" onClick={() => handleBuy(product)} disabled={buying === product.id}>
+                        {buying === product.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <ShoppingBag className="h-3 w-3" />}
                         Comprar
                       </Button>
                     </div>

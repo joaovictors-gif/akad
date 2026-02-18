@@ -1,4 +1,5 @@
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveStudent } from "@/contexts/ActiveStudentContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,8 @@ interface ConvenioInfo {
 
 const StudentMensalidades = () => {
   const { currentUser } = useAuth();
+  const { activeStudentId } = useActiveStudent();
+  const studentId = activeStudentId || currentUser?.uid;
   
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedMensalidade, setSelectedMensalidade] = useState<Mensalidade | null>(null);
@@ -65,12 +68,12 @@ const StudentMensalidades = () => {
   // Busca email do aluno e verifica se é convênio ANTES de mostrar qualquer conteúdo
   useEffect(() => {
     const fetchUserData = async () => {
-      if (!currentUser?.uid) {
+      if (!studentId) {
         setConvenioChecked(true);
         return;
       }
       try {
-        const inforRef = doc(db, `alunos/${currentUser.uid}/infor/infor`);
+        const inforRef = doc(db, `alunos/${studentId}/infor/infor`);
         const inforSnap = await getDoc(inforRef);
         if (inforSnap.exists()) {
           const data = inforSnap.data();
@@ -105,16 +108,16 @@ const StudentMensalidades = () => {
       }
     };
     fetchUserData();
-  }, [currentUser]);
+  }, [studentId]);
 
   // Busca mensalidades reais do Firebase
   useEffect(() => {
-    if (!currentUser?.uid) {
+    if (!studentId) {
       setLoading(false);
       return;
     }
 
-    const mensRef = collection(db, `alunos/${currentUser.uid}/mensalidades`);
+    const mensRef = collection(db, `alunos/${studentId}/mensalidades`);
 
     const unsubscribe = onSnapshot(mensRef, (snapshot) => {
       const fetchedMensalidades: Mensalidade[] = [];
@@ -289,11 +292,11 @@ const StudentMensalidades = () => {
 
   // Gera código PIX real
   const handlePixPayment = async () => {
-    if (!selectedMensalidade || !currentUser?.uid) return;
+    if (!selectedMensalidade || !studentId) return;
 
     setIsGeneratingPix(true);
     try {
-      const response = await createPixPayment(currentUser.uid, selectedMensalidade.id);
+      const response = await createPixPayment(studentId, selectedMensalidade.id);
 
       // Verifica se já está pago
       if (response.mensagem) {
@@ -317,11 +320,11 @@ const StudentMensalidades = () => {
 
   // Pagamento com cartão
   const handleCreditCardPayment = async () => {
-    if (!selectedMensalidade || !currentUser?.uid) return;
+    if (!selectedMensalidade || !studentId) return;
 
     setIsGeneratingCard(true);
     try {
-      const response = await createCardPayment(currentUser.uid, selectedMensalidade.id);
+      const response = await createCardPayment(studentId, selectedMensalidade.id);
 
       // Verifica se já está pago
       if (response.mensagem) {
@@ -422,13 +425,6 @@ const StudentMensalidades = () => {
             {/* Status Card + Lista de Mensalidades - só mostra se não for convênio */}
             {!convenioInfo.isConvenio && (
               <>
-                <MensalidadeStatusCard
-                  pendentes={mensalidadeCounts.pendentes}
-                  atrasadas={mensalidadeCounts.atrasadas}
-                  pagas={mensalidadeCounts.pagas}
-                  total={mensalidadeCounts.total}
-                  isConvenio={convenioInfo.isConvenio}
-                />
                 {loading ? (
                   <div className="space-y-3">
                     <Skeleton className="h-20 w-full rounded-lg" />

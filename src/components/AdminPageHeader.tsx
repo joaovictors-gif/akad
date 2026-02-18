@@ -10,7 +10,7 @@ interface AdminPageHeaderProps {
 
 export function AdminPageHeader({ title, subtitle, onMenuClick, rightContent }: AdminPageHeaderProps) {
   return (
-    <header className="sticky top-0 z-30 glass border-b border-border/30">
+    <header className="sticky top-0 z-30 glass border-b border-border/30" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="px-4 md:px-6 lg:px-8 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">

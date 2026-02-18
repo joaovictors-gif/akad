@@ -73,6 +73,7 @@ export function AppSidebar({ isOpen, onClose }: AppSidebarProps) {
           border-r border-border/30
           ${isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         {/* Header with Logo and Close button */}
         <div className="p-6 pb-8 flex items-center justify-between">
