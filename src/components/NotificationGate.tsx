@@ -4,7 +4,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
+
+const isNativeWebView = () => navigator.userAgent.includes("AKAD_APP_WEBVIEW");
+
+const saveTokenToBackend = async (uid: string, fcmToken: string) => {
+  const response = await fetch(
+    `https://us-central1-akad-fbe7e.cloudfunctions.net/app/alunos/${uid}/infor/infor`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: fcmToken }),
+    }
+  );
+  if (!response.ok) throw new Error("Failed to save token");
+};
 
 interface NotificationGateProps {
   children: ReactNode;
@@ -13,28 +27,70 @@ interface NotificationGateProps {
 export const NotificationGate = ({ children }: NotificationGateProps) => {
   const { token, isSupported, isPermissionGranted, isLoading, requestPermission } = usePushNotifications();
   const { currentUser } = useAuth();
+  const [nativeToken, setNativeToken] = useState<string | null>(null);
+
+  // Escuta token injetado pelo app React Native via WebView
+  useEffect(() => {
+    if (!isNativeWebView() || !currentUser) return;
+
+    // Checa se já foi injetado antes do listener
+    if ((window as any).NATIVE_FCM_TOKEN) {
+      const t = (window as any).NATIVE_FCM_TOKEN;
+      setNativeToken(t);
+      saveTokenToBackend(currentUser.uid, t)
+        .then(() => console.log("✅ Native token saved"))
+        .catch(console.error);
+    }
+
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && currentUser) {
+        setNativeToken(detail);
+        saveTokenToBackend(currentUser.uid, detail)
+          .then(() => {
+            console.log("✅ Native token saved via event");
+            toast.success("Notificações ativadas!");
+          })
+          .catch((err) => {
+            console.error("Erro ao salvar token nativo:", err);
+          });
+      }
+    };
+
+    window.addEventListener("nativeFCMToken", handler);
+    return () => window.removeEventListener("nativeFCMToken", handler);
+  }, [currentUser]);
+
+  // Se está no WebView nativo e tem token, libera acesso direto
+  if (isNativeWebView() && nativeToken) {
+    return <>{children}</>;
+  }
+
+  // Se está no WebView nativo mas ainda sem token, mostra loading
+  if (isNativeWebView() && !nativeToken) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center animate-pulse">
+              <Loader2 className="h-8 w-8 text-primary animate-spin" />
+            </div>
+            <CardTitle className="text-xl">Configurando notificações...</CardTitle>
+            <CardDescription>
+              Aguarde enquanto ativamos as notificações do aplicativo.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   const handleEnableNotifications = async () => {
     const fcmToken = await requestPermission();
     if (fcmToken && currentUser) {
       try {
-        // Save token to the student's infor subcollection via API
-        const response = await fetch(
-          `https://us-central1-akad-fbe7e.cloudfunctions.net/app/alunos/${currentUser.uid}/infor/infor`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ token: fcmToken }),
-          }
-        );
-
-        if (response.ok) {
-          toast.success("Notificações ativadas com sucesso!");
-        } else {
-          throw new Error("Failed to save token");
-        }
+        await saveTokenToBackend(currentUser.uid, fcmToken);
+        toast.success("Notificações ativadas com sucesso!");
       } catch (error) {
         console.error("Erro ao salvar token:", error);
         toast.error("Erro ao salvar configuração");
@@ -98,7 +154,6 @@ export const NotificationGate = ({ children }: NotificationGateProps) => {
               </li>
             </ul>
           </div>
-
 
           <Button 
             onClick={handleEnableNotifications} 
